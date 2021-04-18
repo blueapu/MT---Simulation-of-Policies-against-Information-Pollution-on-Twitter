@@ -16,7 +16,7 @@ This _respository_ contains the _R_- and _NetLogo_-code for my Master Thesis **"
 
 &nbsp;
 
-**Code: MT_networkanalysis_05.rmd / MT_networkanalysis_05.html**
+**Code: MT_networkanalysis_06.rmd / MT_networkanalysis_06.html**
 + ... contains the code used for analyzing the network based on the downloaded tweets.
 
 &nbsp;
@@ -28,6 +28,8 @@ This _respository_ contains the _R_- and _NetLogo_-code for my Master Thesis **"
 
 **Code: MT_resultanalysis_02.rmd / MT_resultanalysis_02.html**
 + ... contains the code analyzing the simulation results, including performing OLS and plot generation.
+
+&nbsp;
 
 ### NetLogo-Code
 **Code: network_sim_warn_01_00_code.html**
