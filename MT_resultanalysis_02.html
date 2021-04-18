@@ -585,25 +585,25 @@ summary(res02_0t1)</code></pre>
 ## Multiple R-squared:  0.00612,    Adjusted R-squared:  -0.01102 
 ## F-statistic: 0.3572 on 1 and 58 DF,  p-value: 0.5524</code></pre>
 <pre class="r"><code># over 1 day to 2 days
-summary(res02_0t1)</code></pre>
+summary(res02_1t2)</code></pre>
 <pre><code>## 
 ## Call:
 ## lm(formula = sum_newip ~ d_delay, data = .)
 ## 
 ## Residuals:
 ##    Min     1Q Median     3Q    Max 
-## -24007   1533   1658   1792   2121 
+## -23020   1608   1790   3605   3950 
 ## 
 ## Coefficients:
 ##             Estimate Std. Error t value Pr(&gt;|t|)    
-## (Intercept)  24006.9     1167.7  20.560   &lt;2e-16 ***
-## d_delay       -986.9     1651.3  -0.598    0.552    
+## (Intercept)    27725       3009   9.215 5.86e-13 ***
+## d_delay        -4705       1903  -2.473   0.0164 *  
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
 ## 
-## Residual standard error: 6396 on 58 degrees of freedom
-## Multiple R-squared:  0.00612,    Adjusted R-squared:  -0.01102 
-## F-statistic: 0.3572 on 1 and 58 DF,  p-value: 0.5524</code></pre>
+## Residual standard error: 7369 on 58 degrees of freedom
+## Multiple R-squared:  0.09537,    Adjusted R-squared:  0.07978 
+## F-statistic: 6.115 on 1 and 58 DF,  p-value: 0.01636</code></pre>
 <pre class="r"><code>## viewing OLS and saving as .html-table
 # viewing results
 summary(res02)</code></pre>

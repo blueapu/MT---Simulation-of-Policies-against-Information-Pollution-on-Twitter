@@ -196,7 +196,7 @@ summary(res02)
 # over 0 days to 1 day
 summary(res02_0t1)
 # over 1 day to 2 days
-summary(res02_0t1)
+summary(res02_1t2)
 
 ## viewing OLS and saving as .html-table
 # viewing results
