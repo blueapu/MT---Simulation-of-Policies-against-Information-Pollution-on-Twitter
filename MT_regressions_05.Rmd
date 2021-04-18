@@ -1,0 +1,260 @@
+---
+title: "MT Regressions  04"
+author: "Markus Rottmann"
+date: "2021 04 05"
+output:
+  html_document:
+      toc: true
+      toc_depth: 5
+---
+
+```{r setup, include = FALSE, warning = FALSE, results = FALSE}
+
+## 0.1: clearing memory
+rm(list=ls(all=T))
+
+
+## 0.2 defining options
+options(repos = "https://cran.rstudio.com")
+options(stringsAsFactors = FALSE)
+knitr::opts_chunk$set(echo = TRUE, fig.width = 7, fig.height = 5)
+
+
+## 0.3 loading (and installing) packages
+# defining required packages
+req_packages <- c("dplyr", "knitr", "kableExtra", "rvest", "igraph",
+"ggplot2", "tibble", "quanteda", "stargazer", "tidyr", "stringr", "lme4",
+"rtweet", "lubridate", "nnet", "glm.predict")
+
+# checking, if already installed
+new_packages <- req_packages[!(req_packages %in% installed.packages()[,"Package"])]
+
+# installing (downloading) missing packages
+if(length(new_packages) > 0) {
+  install.packages(new_packages)
+} 
+
+# loading required packages
+lapply(req_packages, library, character.only = TRUE) 
+
+# removing auxillary variabels
+rm(req_packages, new_packages) 
+
+# frequenty needed packages: ("dplyr", "knitr", "kableExtra", "rvest", "igraph",
+# "pageviews", "WikipediR", "ggplot2", "tibble", "quanteda", "stargazer", "tidyr",
+# "stringr", "lme4", "rtweet", "lubridate")
+
+
+
+```
+
+***
+
+<br>
+
+#### Description
+This code predicts the probability of all candidates in the network to tweet a certain type of information pollution tweets. These results are input for the MABS simulation.
+
+This is achieved in following three steps:
+
+ 1. A multinominal regression is ran on all manually information pollution tweets of the corona tweets. Independent variables are _gender_ and _party_.
+ 2. The regression results are then applied to all candidates in the network, results are predicted probabilities.
+ 3. Since the probabilities to issue an information pollution tweet are very low (less than 0.1%), the probabilites are pronounced (refer to below).
+ 
+<br>
+
+ **NOTE:** 
+ 
+ - The sequence (of columns) of pronounced probabilites is: 1st: "NO", 2nd: "NTR", 3rd: "OPP", 4th: "SUP".
+ - Pronounced Probabilities are calculated as follows:
+   + Pronounced Probabilites of issuing no tweet ("NO") are assigned according to the quartiles of predicted probabilities
+     - 1st quartile = 83%, 2nd quartile = 88%, 3rd quartile = 93%, 4th quartile = 98%
+     
+   + The remaining pronounced probabilites are distributed assccording to the proportion of "NTR", "OPP" and "SUP" to each other.
+
+<br>
+
+**Data:**
+
+ **input:**
+  - dataframe `df_tweets_clean_de_w_ipind.rds` containing all tweets; manually classified in "NO", "NTR", "OPP" and "SUP".
+  - vector `vct_crn_txt.rds` containing all text_ids of corona-related tweets.
+  - vector `namestring_nwmembers00.rds` containing all text_ids of network members.
+  - dataframe `df_tweets_clean_de.rds`, again; containing all tweets.
+
+<br>
+
+ **output:** 
+  - regression results `res01.rds`, `res02.rds`, `res03.rds` and `res01.rds`. `res04.rds` is the one regressing _IP-Type_ on _gender_ and _party_.
+  - tabulated results of _IP-Type_ on _gender_ and _party_ 
+  - matrix `prob_input_test01.txt` of pronounced prediced probablities for all network-members.
+
+
+***
+
+#### Predicting Probabilites, Predicting Pronounced Probabilities
+
+
+```{r 01, include = TRUE, results = TRUE, eval = FALSE, message = FALSE, warning = FALSE}
+
+## loading and preparing data--------------------
+# loading all corona-tweets (including indicator on corona-ip)
+data00 <- readRDS(file = "./DataFrames/df_tweets_clean_de_w_ipind.rds")
+# loading all tweets of network
+data03 <- readRDS(file = "./DataFrames/df_tweets_clean_de.rds")
+# loading vector indicating corona-tweets (text_id)
+vct00 <- readRDS(file = "./DataFrames/vct_crn_txt.rds")
+# loading vector indicating members of network (screen_name)
+vct01 <- readRDS(file = "./DataFrames/namestring_nwmembers00.rds")
+
+# restricting data to corona-tweets only
+data01 <- data00 %>% 
+  dplyr::filter(., text_id %in% vct00)
+
+# Wrapping-up partynames (all with less than 3 candidates: "Others")
+data01[data01$party_short == "ALG", "party_short"] <- "Grüne"
+data01[data01$party_short == "AL ZH", "party_short"] <- "AL"
+data01[data01$party_short == "AL SH", "party_short"] <- "AL"
+data01[data01$party_short == "JGBNW", "party_short"] <- "JG"
+data01[data01$party_short == "LS", "party_short"] <- "SVP"
+data01[data01$party_short == "PUM", "party_short"] <- "Other"
+data01[data01$party_short == "FW AG", "party_short"] <- "Other"
+data01[data01$party_short == "CSPO", "party_short"] <- "CVP"
+data01[data01$party_short == "CSP", "party_short"] <- "CVP"
+data01[data01$party_short == "CSV", "party_short"] <- "CVP"
+data01[data01$party_short == "LOVB", "party_short"] <- "Other"
+data01[data01$party_short == "TEAM65+", "party_short"] <- "Other"
+data01[data01$party_short == "LV", "party_short"] <- "Other"
+data01[data01$party_short == "DDSN", "party_short"] <- "Other"
+data01[data01$party_short == "PARAT", "party_short"] <- "Other"
+unique(data01$party_short) # checking, if it worked
+
+
+## calculating probabilities---------------------------------
+# defining models
+md01 <- ipind ~ party_short
+md02 <- ipind ~ gender
+md03 <- ipind ~ age2020
+md04 <- ipind ~ party_short + gender
+# releveling base to "NO" (= no ip tweet)
+data01$ipind <- relevel(data01$ipind, ref = "NO")
+# letting multinom run
+res01 <- multinom(formula = md01, data = data01)
+res02 <- multinom(formula = md02, data = data01)
+res03 <- multinom(formula = md03, data = data01)
+res04 <- multinom(formula = md04, data = data01)
+
+## predicting probabilites with chracteristics...-------------
+# ... of (all twitter users in network)
+# creating data frame (all twitter users)
+data02 <- data03 %>% 
+  dplyr::filter(., screen_name %in% vct01) %>% 
+  dplyr::select(., user_id, party_short, gender) %>% 
+  unique(.)
+
+###--------------------------------------
+
+
+# saving results
+res03 %>% 
+   stargazer(.,
+        style = "apsr",
+        digits = 2,
+        type = "html",
+        out = "./PlotsTables/regres_ban_noip2_lstwt3_365_01.html")
+
+
+###---------------------------------
+
+
+
+
+
+# Wrapping-up Partynames
+data02[data02$party_short == "ALG", "party_short"] <- "Grüne"
+data02[data02$party_short == "AL ZH", "party_short"] <- "AL"
+data02[data02$party_short == "AL SH", "party_short"] <- "AL"
+data02[data02$party_short == "JGBNW", "party_short"] <- "JG"
+data02[data02$party_short == "LS", "party_short"] <- "SVP"
+data02[data02$party_short == "PUM", "party_short"] <- "Other"
+data02[data02$party_short == "FW AG", "party_short"] <- "Other"
+data02[data02$party_short == "CSPO", "party_short"] <- "CVP"
+data02[data02$party_short == "CSP", "party_short"] <- "CVP"
+data02[data02$party_short == "CSV", "party_short"] <- "CVP"
+data02[data02$party_short == "LOVB", "party_short"] <- "Other"
+data02[data02$party_short == "TEAM65+", "party_short"] <- "Other"
+data02[data02$party_short == "LV", "party_short"] <- "Other"
+data02[data02$party_short == "DDSN", "party_short"] <- "Other"
+data02[data02$party_short == "PARAT", "party_short"] <- "Other"
+data02[data02$party_short == "DU", "party_short"] <- "Other"
+data02[data02$party_short == "Più Donne", "party_short"] <- "Other"
+data02[data02$party_short == "PCSI", "party_short"] <- "Other"
+unique(data02$party_short) # checking, if it worked
+
+# predicting probabilites to issue "NO", "NTR", "OPP"...
+# ... or "SUP" tweets.
+pred00 <- predict(res04, newdata = data02, "probs") %>% 
+  as.data.frame(.)
+# turning results into percent
+pred01 <- pred00 * 100
+
+
+## creating pronounced probabilities--------------------------
+# getting quartiles from prediciton
+qnt_NO <- pred01$NO %>% 
+  quantile(.) %>% 
+  as.data.frame(.) %>% 
+  pull(.)
+qrt_NO1 <- qnt_NO[2] # first quartile
+qrt_NO2 <- qnt_NO[3] # second quartile
+qrt_NO3 <- qnt_NO[4] # third quartile
+
+# assigning pronounced probability values...
+# ...for issuing "NO ip tweet"
+pred02<- pred01 %>% 
+  mutate(., pronNO = ifelse(NO <= qrt_NO1,
+                           83.0, pred01$NO)) # 83.0% for first quartile
+pred02$pronNO <- ifelse(pred02$NO > qrt_NO1 & pred02$NO <= qrt_NO2,
+                       88.0, pred02$pronNO) # 88.0% for second quartile
+pred02$pronNO <- ifelse(pred02$NO > qrt_NO2 & pred02$NO <= qrt_NO3,
+                       93.0, pred02$pronNO) # 93.0% for third quartile
+pred02$pronNO <- ifelse(pred02$NO > qrt_NO3,
+                       98.0, pred02$pronNO) # 98.0 percent for forth quartile
+
+# assigning pronounced probabilty values according to their ratio of probabilites
+pred02$pronNTR <- (pred02$NTR / (pred02$NTR + pred02$SUP + pred02$OPP)) * (100 - pred02$pronNO)
+pred02$pronSUP <- (pred02$SUP / (pred02$NTR + pred02$SUP + pred02$OPP)) * (100 - pred02$pronNO)
+# intermediate rounding (for ouput to be summarized to 100)
+pred02 <- pred02 %>% 
+  mutate_at(vars(pronNO, pronNTR, pronSUP), funs(round(., digits =  0)))
+# calculating the last pronounced probability value
+pred02$pronOPP <- (100 - (pred02$pronNO + pred02$pronNTR + pred02$pronSUP)) %>% 
+  round(., digits = 0)
+# boiling down to enhanced probabilities
+pred03 <- pred02 %>% 
+  dplyr::select(., pronNO, pronNTR, pronOPP, pronSUP)
+
+## save and delete of auxillary variables
+# saving under probabilites "prob_input_large.txt"
+pred03 %>% 
+  `colnames<-`(NULL) %>% # getting rid of column names
+  write.matrix(., file = "D:/Studium/MT_MasterThesis/MT_Code/NetLogo_Code/Data/prob_input_test01.txt")
+# saving regression results
+saveRDS(res01, file = "./DataFrames/res01.rds")
+saveRDS(res02, file = "./DataFrames/res02.rds")
+saveRDS(res03, file = "./DataFrames/res03.rds")
+saveRDS(res04, file = "./DataFrames/res04.rds")
+# removing auxillary variables
+# removing auxillary variables
+rm(list= ls(pattern= "data"))
+rm(list= ls(pattern= "pred"))
+rm(list= ls(pattern= "md"))
+rm(list= ls(pattern= "qnt"))
+rm(list= ls(pattern= "qrt"))
+rm(list= ls(pattern= "vct"))
+rm(list= ls(pattern= "res"))
+
+```
+
+
+
