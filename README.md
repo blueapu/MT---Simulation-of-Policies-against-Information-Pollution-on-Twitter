@@ -1,36 +1,44 @@
 # MT---Simulation-of-Policies-against-Information-Pollution-on-Twitter
 Respository for Master Thesis / Markus Rottmann, 97-919-294
 
-Dieses _Respository_ enthält den Replikationsdatensatz für die Daten des Capstone-Kurses **"Online-Wahrnehmung von Politikerinnen in der Schweiz"**.
-Im Ordner _Replikationsdatensatz_ finden sich die Codes, die die verwendeten Daten replizieren.
-Die Codes sind in _R_ (Version 3.6.1) geschrieben, mit _RMarkdown_ (Version 1.2.1578) dargestellt und sowohl im _.rdm_ als auch im _.html_-Format ausgegeben. 
-Die resultierenden Datensätze sind im R-Format _.rds_ abgespeichert. Alle benötigten Datensätze finden sich im Unterordner _Rohdaten_. Die Datenquellen sind in den Codes genannt.
+This _respository_ contains the _R_- and _NetLogo_-code for my Master Thesis **"Simulation of Policies against Information-Pollution on Twitter"**.
 
 &nbsp;
 
-**Code: CS_base_draft01.rmd / CS_base_draft01.html**
-+ _CS_base_draft01.rmd_ erzeugt den Basisdatensatz _df_base_draft01.rds_, in dem allgemeine Angaben wie das Geburtsjahr der Parlamentsmitglieder, das Geschlecht, etc. enthalten sind.
-+ _CS_base_draft01.rmd_ benötigt die Datensätze _2019_chvote_councilofstates.csv_, _2019_chvote_nationalcouncil.csv_ und _df_parldata.rds_, die im Unterordner _Rohdaten_ abgelegt sind.
+### R-Code
+**Code: MT_scraping_03.rmd / MT_scraping_03.html**
++ ... contains the code used for scraping the candidate's tweets.
 
 &nbsp;
 
-**Code: CS_meta_draft01.rmd / CS_meta_draft01.html**
-+ _CS_meta_draft01.rmd_ erzeugt die Metadaten des Wikipedia-Eintrags, den Datensatz _df_meta_draft01.rds_.
-+ _CS_meta_draft01.rmd_ benötigt den Basisdatensatz _df_base_draft01.rds_, der entsteht, wenn _CS_base_draft01.rmd_ durchgeführt wird.
+**Code: MT_corpus_analysis_06.rmd / MT_corpus_analysis_06.html**
++ ... contains the code used for analzing the downloaded tweets.
 
 &nbsp;
 
-**Code: CS_txt_draft01.rmd / CS_txt_draft01.html**
-+ _CS_txt_draft01.rmd_ erzeugt die Inhaltsanalysedaten des Wikipedia-Eintrags, den Datensatz _df_txt_draft01.rds_. In diesem Code werden auch die Wikipediatexte heruntergeladen und verarbeitet.
-+ _CS_txt_draft01.rmd_ benötigt den Basisdatensatz _df_base_draft01.rds_, der entsteht, wenn _CS_base_draft01.rmd_ durchgeführt wird.
+**Code: MT_networkanalysis_05.rmd / MT_networkanalysis_05.html**
++ ... contains the code used for analyzing the network based on the downloaded tweets.
 
 &nbsp;
 
-**Code: CS_alldata_draft01.rmd / CS_alldata_draft01.html**
-+ _CS_alldata_draft01.rmd_ führt alle Datensätze zusammen in den Datensatz _df_alldata_draft01.rds_. 
-+ _CS_alldata_draft01.rmd_ benötigt alle drei Datensätze (_df_base_draft.rds_, _df_meta_draft01.rds_ und _df_txt_draft01.rds_) die entstehen, wenn _CS_base_draft.rmd_, _CS_meta_draft.rmd_ und _CS_txt_draft01.rmd_, durchgeführt werden.
+**Code: MT_regressions_05.rmd / MT_regressions_05.html**
++ ... contains the code used for predicting individual probabilities to issue a tweet, including pronounced probabilities.
 
 &nbsp;
 
-**Datensatz: df_all_data_draft07.rds** (im Unterordner _Rohdaten_)
-+ _df_all_data_draft07.rds_ ist der Datensatz, mit dem die Auswertungen erstellt wurden.
+**Code: MT_resultanalysis_02.rmd / MT_resultanalysis_02.html**
++ ... contains the code analyzing the simulation results, including performing OLS and plot generation.
+
+### NetLogo-Code
+**Code: network_sim_warn_01_00_code.html**
++ ... contains the code building the MABS model for countermeasure "Warning".
+
+&nbsp;
+
+**Code: network_sim_delay_01_00_code.html**
++ ... contains the code building the MABS model for countermeasure "Account Suspension".
+
+&nbsp;
+
+**Code: network_sim_ban_01_00_0_del183_code**
++ ... contains the code building the MABS model for countermeasure "Account Ban" for deleting 183 candidates.
