@@ -3,7 +3,7 @@ Respository for Master Thesis / Markus Rottmann, 97-919-294
 
 This _respository_ contains the _R_- and _NetLogo_-code for my Master Thesis **"Simulation of Policies against Information-Pollution on Twitter"**.
 + all input and output data are referenced in the respective codes. 
-+ for easy viewing, please download the .html-files and view it in your browser.
++ for easy viewing, please download the [ahso]( https://htmlpreview.github.io/?) and view it in your browser.
 
 
 &nbsp;
