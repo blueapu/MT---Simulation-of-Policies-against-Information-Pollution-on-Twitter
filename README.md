@@ -43,13 +43,13 @@ This _respository_ contains the _R_- and _NetLogo_-code for my Master Thesis **"
 ### NetLogo-Code
 **Code: network_sim_warn_x02_04.nlogo / network_sim_warn_x02_04.html**
 + Contains the code building the MABS model for countermeasure "Warning Labels".
-+ [network_sim_warn_x02_04.html](https://htmlpreview.github.io/?https://github.com/blueapu/MT---Simulation-of-Policies-against-Information-Pollution-on-Twitter/blob/main/network_sim_warn_x02_04.htmlhttps://github.com/blueapu/MT---Simulation-of-Policies-against-Information-Pollution-on-Twitter/blob/main/network_sim_ban_x02_03_universal.html]
++ [network_sim_warn_x02_04.html](https://htmlpreview.github.io/?https://github.com/blueapu/MT---Simulation-of-Policies-against-Information-Pollution-on-Twitter/blob/main/network_sim_warn_x02_04.html)
 
 &nbsp;
 
 **Code: network_sim_susp_x02_03.nlogo / network_sim_susp_x02_03.html**
 + ... contains the code building the MABS model for countermeasure "Account Suspension".
-+ [network_sim_susp_x02_03.html](https://htmlpreview.github.io/?https://github.com/blueapu/MT---Simulation-of-Policies-against-Information-Pollution-on-Twitter/blob/main/network_sim_susp_x02_03.html]
++ [network_sim_susp_x02_03.html](https://htmlpreview.github.io/?https://github.com/blueapu/MT---Simulation-of-Policies-against-Information-Pollution-on-Twitter/blob/main/network_sim_susp_x02_03.html)
 
 &nbsp;
 
