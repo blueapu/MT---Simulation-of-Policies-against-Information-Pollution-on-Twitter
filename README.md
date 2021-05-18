@@ -28,9 +28,9 @@ This _respository_ contains the _R_- and _NetLogo_-code for my Master Thesis **"
 
 &nbsp;
 
-**Code: MT_regressions_05.rmd / MT_regressions_05.html**
+**Code: MT_probabilities_prediction_01.rmd / MT_probabilities_prediction_01.html**
 + This code predicts the probability of all candidates in the network to tweet a certain type of information pollution tweets. These results are input for the MABS simulation. This is achieved in three steps. First, a multinominal regression is ran on all manually information pollution tweets of the corona tweets. Independent variables are _gender_ and _party_. Second, The regression results are then applied to all candidates in the network, results are predicted probabilities. Third, since the probabilities to issue an information pollution tweet are very low (less than 0.1%), the probabilites enhanced, resulting in pronounced probabilities.
-+ [MT_regressions_05.html](https://htmlpreview.github.io/?https://github.com/blueapu/MT---Simulation-of-Policies-against-Information-Pollution-on-Twitter/blob/main/MT_regressions_05.html)
++ [MT_probabilities_prediction_01.html](https://htmlpreview.github.io/?https://github.com/blueapu/MT---Simulation-of-Policies-against-Information-Pollution-on-Twitter/blob/main/MT_probabilities_prediction_01.html)
 
 &nbsp;
 
