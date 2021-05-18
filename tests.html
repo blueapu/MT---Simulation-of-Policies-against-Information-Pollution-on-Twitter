@@ -1,0 +1,328 @@
+;;;; INFORMATION ------------------------------------------------------------------------------
+;; Model: Countermeasure "Account Ban"
+;; Version: sim_ban_02 / Development: 03
+;; Author: Markus Rottmann / 97-919-294
+;; Date: 2021-04-26
+;;
+;; External Inputs:
+;; 1) network-adjecency matrix "test_adj_matx01.txt"
+;; 2) pobability to tweet (no, neutral, opposing, supporting) "prob_input_test03.txt"
+;;
+;; Internal Inputs (from Interface):
+;; 1) duration of analysis "srv_d"
+;; 2) number of initial tweets "no_ip_twt"
+;; 3) life span of tweets "ls_twt"
+;; 4) number of twitter accounts banned (during "srv_d") "no_ban"
+
+;;;; SETUP ------------------------------------------------------------------------------
+;; loading extensions (here: network)
+extensions [ nw ]
+
+
+;; defining variables
+; defining global variables
+globals
+[
+  prob_lst ; list of probabilities to tweet
+  sum_newip ; sum of new tweets
+  kill_lst
+]
+
+; defining turtle (= twitter user) variables
+turtles-own
+[
+  view_ip_twt ; indicator, if there is an information pollution tweet in the neighborhood (in one of the linked nodes)
+  post_ip_twt ; indicator if turtle posts / posted an information pollution tweet
+  tm_twt ; time since an tweet has been posted (in ticks)
+  twt_type ; type of tweet posted (supporting, opposing, neutral)
+  p_ip_NO  ; probability of posting no tweet (in percent)
+  p_ip_SUP ; probability of posting a supporting tweet (in percent)
+  p_ip_OPP ; probability of posting an opposing tweet (in percent)
+  p_ip_NTR ; probability of posting a neutral tweet (in percent)
+]
+
+
+;; setting-up the stage
+; defining sequence of setup-opertions
+to setup
+   set-current-directory "D:\\Studium\\MT_MasterThesis\\MT_Code\\NetLogo_Code"
+   clear-all
+   setup-killdays
+   setup-network
+   setup-tweets
+   readin-prob
+   setup-prob
+   reset-ticks
+end
+
+; setup-killdays: setting-up the days when turtles are killed
+to setup-killdays
+  if del_no = "0" [ set kill_lst [ ] ]
+
+  if del_no = "91" [
+        set kill_lst [ 345 164 232 272  27 149 216 137  10 233 271
+                    49 242 354 275 289  45 2 107 100  33 349
+                    226 325 265  95 352 281 113 273 308 282 254
+                    44 108  76 309 222 120 306 157 341 245 126
+                    186 156 357 112  94 189 148  86 315 143 154
+                    351 330 102 101 4 237 194 301 251 132 365 170
+                    339  41  20 61 174 175 139 198 340 28 29 13
+                    26 229 307 363 220 187 19 280 247 121 317 205 ]
+        ]
+
+  if del_no = "183" [
+        set kill_lst [326 208 280 310 163 281 248 346 135
+                      225 260  53 282 238 253 360  70 263 226 353 137
+                      38 254  94 250  45 182   6 306  72 155  78  73
+                      23 278 251   3 149  22 276 249 325 359 351  12
+                      61 284 352 349 147 233  32 224 336 252 235
+                      16 218 240 317 166  54 141  80 237 177 112
+                      216 239  91 165 214 274 143 183 104 201 199
+                      290 198 307 180 319 196  99  26  20 308 241
+                      62 101 322 106  58 330  85  83 243 209 145
+                      35 192 132 286 188 271  29 261 232 279 128
+                      272 246 337  14 185 159 255 264  84 170  13
+                      315 213  36 181 354  34 220 301 257 217 256
+                      228 204 344 289  47 102  19   1 362  93 291
+                      97 324 341 125 275 265  39 174 107 230 8 126
+                      59 195 211  87 269 119 295 258 127 327 171 134
+                      219 347 333  92 187 206  68 200 157 168 178
+                      288 267 197 173 ]
+        ]
+
+
+  if del_no = "273" [
+        set kill_lst [258 314 162 192  47 312 190 256 329 260
+                       72 207  44 106 233  59  57 110 322 187 171  85 179  71
+                       138  73 154 354 272 115  68 234 251 161 309 298  82 139
+                       356 37 235  60 127 131 193 337 177 241 308 146 313 294
+                       353  41 275 328 334 282 156 119 222 215 362 118 120 321
+                       220 237 283  12 209 323  46 198  74 104  86 134 100
+                       19 225 137  92 140 363 259 264 346 133 247 143 112 213
+                       158 109  42 250 289 205 310  55 121 350 152 153  13 327
+                       111 330   5 343 261 101 175 355  34 181 326 246 305 132
+                       90 357  91 102 125  32 320  25  66  31 359 311 232  23
+                       65 159  26 341 257 176 228 194 274 265 144 129  75 8
+                       348  76  50  89 349 167 347 164 242  18 149
+                       2 295 165  24 269  52 135 178 155  17   9 229
+                       40 226 292 288  29 221  69 240  54  56 113  80
+                       45 339  11 364  70 301  64   1 148 345 142
+                       267 315  62 276 245 214 236   7 325 218 151
+                       284 147 182 324  22 239 216 145  36 173 291
+                       296 280 297  38 307 238 141 286 202 200 136
+                       208 204 223  87 210  33 4  49 212 338  84  83
+                       43 249  53 196 263  51 278 195 352 186 201 319
+                       277 268 126  28 188  95 332 244 252 199  61  97
+                       342  15 183 302 206 317  10 224 197 ]
+      ]
+
+end
+
+; setup-network: setting-up network from network analysis
+to setup-network
+  set-default-shape turtles "circle"
+
+  ; option "real network" (ntwrk = "real")
+if ntwrk = "real" [
+     nw:load-matrix "Data\\test_adj_matx01.txt" turtles links ; loading adjacency matrix
+  ]
+
+  ; option "less dense network" with an average of 15 links/turtle (ntwrk = "sim_15")
+if ntwrk = "sim_15" [
+     create-turtles 858
+     let num-links (15 * 858) / 2  ; defining total number of links
+     while [count links < num-links ] ; loop for number of links
+       [
+       ask one-of turtles ; instructing random turtle
+         [
+         let choice (min-one-of (other turtles with [not link-neighbor? myself])   ; defining the link turtle number "choice" as random from agentset. agentset = all neighbors that are no link neighbors with myself)...
+                   [distance myself])                                              ; ... reporter = the agent number with the smallest ("min-one-of") of "distance to myself"
+         if choice != nobody [ create-link-with choice ]                           ; ... if there is a turtle-number; create a link with this number
+         ]
+       ]
+  ]
+
+  ; option "less dense network" with an average of 30 links/turtle (ntwrk = "sim_30")
+if ntwrk = "sim_30" [
+     create-turtles 858
+     let num-links (30 * 858) / 2  ; defining total number of links
+     while [count links < num-links ] ; loop for number of links
+       [
+       ask one-of turtles ; instructing random turtle
+         [
+         let choice (min-one-of (other turtles with [not link-neighbor? myself])   ; defining the link turtle number "choice" as random from agentset. agentset = all neighbors that are no link neighbors with myself)...
+                   [distance myself])                                              ; ... reporter = the agent number with the smallest ("min-one-of") of "distance to myself"
+         if choice != nobody [ create-link-with choice ]                           ; ... if there is a turtle-number; create a link with this number
+         ]
+       ]
+  ]
+
+    ; option "less dense network" with an average of 45 links/turtle (ntwrk = "sim_45")
+if ntwrk = "sim_45" [
+     create-turtles 858
+     let num-links (45 * 858) / 2  ; defining total number of links
+     while [count links < num-links ] ; loop for number of links
+       [
+       ask one-of turtles ; instructing random turtle
+         [
+         let choice (min-one-of (other turtles with [not link-neighbor? myself])   ; defining the link turtle number "choice" as random from agentset. agentset = all neighbors that are no link neighbors with myself)...
+                   [distance myself])                                              ; ... reporter = the agent number with the smallest ("min-one-of") of "distance to myself"
+         if choice != nobody [ create-link-with choice ]                           ; ... if there is a turtle-number; create a link with this number
+         ]
+       ]
+  ]
+
+  repeat 30 [ layout-spring turtles links 0.3 ((world-width / sqrt count turtles) / 2) 2 ]
+  ask turtles [ set label who ] ; labelling with turtle-id
+  ask turtles [ set color grey ] ; setting basic turtle color
+  ask turtles [ set size 1 ] ; setting turtle size
+  ask turtles [ set twt_type "NO"] ; setting basic tweet ("NO" = no Tweet)
+  ask turtles [ set tm_twt 0 ] ; setting time since tweet to zero
+  ask turtles [ set post_ip_twt 0 ] ; setting indicator for information pollution tweets "0" (= no ip tweet)
+end
+
+; setup-tweets: setting-up initial number of tweets
+to setup-tweets
+    ask n-of no_ip_twt turtles
+    [
+    set post_ip_twt 1
+    set twt_type "NTR"
+    set color blue
+    set tm_twt 0
+    set sum_newip 0
+    ]
+end
+
+; readin-prob: reading-in basic predicted probabilies from tweet analyis (used in setup-prob)
+to readin-prob
+
+    ifelse ( file-exists? "Data\\prob_input_test03.txt" ) ; check, if file "prob_input_01.txt" exists in specified folder
+    [
+     set prob_lst [] ; preparing a list for probabilities
+
+    file-open "Data\\prob_input_test03.txt" ; opening the data
+
+       while [ not file-at-end? ] ; reading the file to the end
+         [
+          set prob_lst sentence prob_lst file-read ; reads-in all probabiliies in one single list
+         ]
+
+   ; user-message "Input file prob_input_test03.txt sucessfully loaded!" ; message when sucessfully loaded
+      file-close ; closing file
+    ]
+
+    [
+    user-message "There is no file called prob_input_test03.txt in directory Data!" ; message, when no file "prob_input_test00.txt" present ("else"-condition of first "ifelse")
+    ]
+end
+
+; setup-prob: assigning read-in predicted probabilities to each twitter user
+to setup-prob
+  ask turtles [
+    set p_ip_NO item  ((who * 4) + 0) prob_lst ; every first (+ 0) entry is probability "NO"
+    set p_ip_NTR item ((who * 4) + 1) prob_lst ; every second entry (+ 1) is probability "NTR"
+    set p_ip_OPP item ((who * 4) + 2) prob_lst ; every third entry (+ 2) is probability "OPP"
+    set p_ip_SUP item ((who * 4) + 3) prob_lst ; every fourth entry (+ 3) is probability "SUP"
+  ]
+end
+
+
+;;;; EXECUTION ---------------------------------------------------------------------------
+;; defining sequence of execution operations
+to go
+   tweet_action
+   tweet_cleanup
+   account_ban
+   if ticks >= srv_d [                         ; stopping & reporting after no of ticks
+                      output-print sum_newip
+                      output-print count turtles
+                      output-print ticks
+                      stop
+                      ]
+   if count turtles with [ post_ip_twt = 1 ] <= 0 [ ; stopping & reporting after no of ticks
+                      output-print sum_newip
+                      output-print count turtles
+                      output-print ticks
+                      stop
+                                                   ]
+   tick
+end
+
+;; executing operations
+; tweet_action: turtle tweets based on: 1) neighboring tweet, 2) assigned probabilites
+
+to account_ban
+  if member? ticks kill_lst ; when ticks reached one of the one's in the kill-list
+  [
+    ask one-of turtles with [post_ip_twt = 1] [ die ]
+  ]
+end
+
+to tweet_action
+    ask turtles
+    [
+
+      if post_ip_twt = 1 [ set tm_twt tm_twt + 1 ] ; tweet aging: counting days since tweet one up
+
+      let friends link-neighbors ; defining linked neighbors as "friends"
+      let ip_cnt count friends with [ post_ip_twt = 1 ] ; defining "ip_cnt" as number of "friends" with tweeets (post_ip_twt = "1").
+
+      if ip_cnt > 0 ; if there are any "friends" with tweets, the following applies
+      [
+      let rdm_no random 101 ;
+        if rdm_no <= p_ip_NO [set twt_type "NO"] ; in p_ip_NO there will be no Tweet
+
+        if rdm_no > p_ip_NO and rdm_no <= (p_ip_NO + p_ip_NTR) [set twt_type "NTR"  ; in "p_ip_NTR" percent of all cases, the following applies
+                                                                set sum_newip ( sum_newip + 1 )
+                                                                set post_ip_twt 1
+                                                                set tm_twt 0 ] ;
+
+        if rdm_no > (p_ip_NO + p_ip_NTR) and rdm_no <= (p_ip_NO + p_ip_NTR + p_ip_OPP) [set twt_type "OPP"  ; in "p_ip_OPP" percent of all cases, the following applies
+                                                                set sum_newip ( sum_newip + 1 )
+                                                                set post_ip_twt 1
+                                                                set tm_twt 0 ] ;
+
+        if rdm_no > (p_ip_NO + p_ip_NTR + p_ip_OPP) and rdm_no <= 101 [set twt_type "SUP"  ; in "p_ip_SUP" percent of all cases, the following applies
+                                                                set sum_newip ( sum_newip + 1 )
+                                                                set post_ip_twt 1
+                                                                set tm_twt 0 ] ;
+       ]
+
+    ]
+end
+
+; tweet_cleanup: ip tweets that reached tweet lifespan "ls_twt" (from interface) are set-back to "NO" (= no ip-tweet)
+to tweet_cleanup
+ask turtles
+    [
+      if tm_twt >= ls_twt ; checking if lifespan "ls_twt" has been reached
+        [
+        set tm_twt 0 ; if yes, setting back time since tweet
+        set post_ip_twt 0 ; if yes, setting back tweet indicator to "zero"
+        set twt_type "NO" ; if yes; lable twitterer as "NO"
+        ]
+
+      if twt_type = "NTR" [ set color blue ] ; change colors acc. to tweet type
+      if twt_type = "SUP" [ set color red ] ; change colors acc. to tweet type
+      if twt_type = "OPP" [ set color green ] ; change colors acc. to tweet type
+      if twt_type = "NO"  [ set color grey ] ; change colors acc. to tweet type
+    ]
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
