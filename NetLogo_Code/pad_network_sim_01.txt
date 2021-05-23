@@ -1,0 +1,79 @@
+
+;;; loading extensions (here: network) & setting the current directory
+extensions [ nw ]
+set-current-directory "C:\\Users\\blueapu\\Desktop\\MT_MasterThesis\\MT_Code\\NetLogo_Code"
+
+
+
+;;; defining variables
+turtles-own
+[
+  view_pollut_sup ; number of supporting tweets of linked neighbors
+  view_pollut_opp ; number of opposing tweets of linked neighbors
+  post_pollut_cont ; content of post: N = ignore (no post); S = supporting post; C = opposing post
+  post_pollut_time ; time (number of ticks since post)
+]
+
+
+; other variables: no_of_support, no_of_opposing, cooldown_time
+
+
+
+;;; setting-up the stage
+; global setup
+to setup
+   clear-all
+   setup-network
+   setup-tweets
+   reset-ticks 
+end
+
+; network setup (derived from tweets)
+to setup-network
+   set-default-shape turtles "circle"
+   nw:load-matrix "Data\\adjmat_folwr_00.txt" turtles links ;loading adjacency matrix derived from reality
+
+   repeat 10 [  ; arranging nodes as if links were springs, "repeat" is part of it
+    layout-spring turtles links 1 ((world-width / sqrt count turtles) / 2) 2
+   ]
+
+   ask turtles [ set label who ] ; labelling with turtle-id
+   ask turtles [ set color grey ] ; setting color
+   ask turtles [ set size 1 ] ; setting size
+   ask turtles [ set post_pollut_time = 0 ] ; setting time since post to zero
+   ask turtles [ set post_pollut_cont = N ] ; setting content of posts to "neutral"
+   
+end
+
+; information pollution setup
+to setup-tweets
+   ask n-of no_of_support turtles [ set post_pollut_cont = S ]  ; assigning (randomly) number of supporting tweets 
+   ask n-of no_of_opposing turtles [ set post_pollut_cont = C ] ; assigning (randomly) number of contradicting tweets
+end
+
+
+;;;; defining actions 
+; global instructions
+to go
+   tweet_reading
+   tweet_action
+   tick
+end
+
+; actions - local, tweet reading (counting Supporting "S" or opposing "C" tweets in neighbors)
+to tweet_reading
+  ask turtles [ 
+    let friends link-neighbors ; defining "friends" as linked turtles (link-neighbors)
+    set view_pollut_sup count friends with [ post_pollut_cont = S ]
+	set view_pollut_opp count friends with [ post_pollut_cont = C ]
+  ]
+end
+
+; actions - local, tweet action
+to tweet_action
+  ask turtles [
+  if view_pollut_opp > view_pollut_sup [ set post_pollut_cont = C ]
+  if view_pollut_opp < view_pollut_sup [ set post_pollut_cont = S ]
+  if view_pollut_opp = view_pollut_sup [ set post_pollut_cont = N ]
+  ] 
+end
