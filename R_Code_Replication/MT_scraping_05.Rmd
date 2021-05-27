@@ -1,0 +1,752 @@
+---
+title: "MT **Scraping**  05"
+author: "Markus Rottmann"
+date: "2021 01 23"
+output:
+  html_document:
+      toc: true
+      toc_depth: 5
+---
+
+
+```{r setup, include = TRUE, warning = FALSE, message = FALSE, eval = FALSE}
+
+## 0.1: clearing memory
+rm(list=ls(all=T))
+
+## 0.2 defining options
+options(repos = "https://cran.rstudio.com")
+options(stringsAsFactors = FALSE)
+knitr::opts_chunk$set(echo = TRUE, fig.width = 7, fig.height = 5)
+
+
+## 0.3 loading (and installing) packages
+# defining required packages
+req_packages <- c("dplyr", "knitr", "kableExtra", "rvest", "igraph",
+"ggplot2", "tibble", "quanteda", "stargazer", "tidyr", "stringr", "lme4",
+"rtweet", "lubridate")
+
+# checking, if already installed
+new_packages <- req_packages[!(req_packages %in% installed.packages()[,"Package"])]
+
+# installing (downloading) missing packages
+if(length(new_packages) > 0) {
+  install.packages(new_packages)
+} 
+
+# loading required packages
+lapply(req_packages, library, character.only = TRUE) 
+
+# removing auxillary variabels
+rm(req_packages, new_packages) 
+
+# frequenty needed packages: ("dplyr", "knitr", "kableExtra", "rvest", "igraph",
+# "pageviews", "WikipediR", "ggplot2", "tibble", "quanteda", "stargazer", "tidyr",
+# "stringr", "lme4", "rtweet", "lubridate")
+
+
+
+```
+
+&nbsp;
+
+***
+
+### Description
+
+  + This Code Scrapes the Tweets of all candidates for 2019 elections and combines it into a data frame that also contains properties such as gender, age, party, etc. 
+  + For the sake of privacy, all twitter API information is set to "YYY".
+  + All code chunks are set `eval = FALSE` due to the very long running time of this code.
+
+
+&nbsp;
+
+***
+
+
+### 1. Generating Source List with Twitter-Adresses of all Candidates for Elections 2019
+
+**Description:** Generating source list containing all candidates for 2019 elections (National Council and Council of States)
+
+
+**Data:**
+
+ * input: `2019_chvote_nationalcouncil.csv`, `2019_chvote_councilofstates.csv`
+ * output: `df_tweets_all_00.rds`
+
+
+```{r 01, include = TRUE, results = TRUE, eval = FALSE, message = FALSE, warning = FALSE}
+
+### Loading & Preparing Base Data Sets
+## Data Set: National Council
+var_sel_nc <- c("firstname", "lastname", "party_short", "gender", "year_of_birth", "zip", "city", "district", "list", "list_place_1",      "LINK_personal_website", "LINK_facebook", "LINK_Twitter", "LINK_Instagram", "incumbent") # defining variables
+
+data_nc <- read.csv("./RawData/2019_chvote_nationalcouncil.csv", encoding = "UTF-8") %>% 
+  select(., var_sel_nc) # reading-in data and selecting defined variables
+
+data_nc$nc <- as.factor(1) # dummy variable indicating candidateship
+data_nc$sc <- as.factor(0) # dummy variable indicating candidateship
+
+## Data Set: Council of states
+var_sel_sc <- c("X.U.FEFF.firstname", "lastname", "party_short", "gender", "year_of_birth", "zip", "city", "district", "LINK_personal_website", "LINK_facebook", "LINK_Twitter", "LINK_Instagram", "incumbent") # defining variables
+
+data_sc <- read.csv("./RawData/2019_chvote_councilofstates.csv", encoding = "UTF-8") %>% 
+  select(., var_sel_sc) # reading-in data and selecting defined variables
+
+data_sc$list <- as.character(NA) # adding (missing) variable (list not applicalbe for counc. o. states)
+data_sc$list_place_1 <- as.character(NA) # adding (missing) variable (list not applicalbe for counc. o. states)
+
+data_sc$nc <- as.factor(0) # dummy variable indicating candidateship
+data_sc$sc <- as.factor(1) # dummy variable indicating candidateship
+
+names(data_sc)[names(data_sc) == "X.U.FEFF.firstname"] <- "firstname" # harmonizing firstname variable
+
+
+### Binding both data sets and assigning an unique ID "id" to all observations (rows)
+data00 <- base::rbind(data_nc, data_sc)
+data00$id <- as.numeric(1:nrow(data00))
+
+### Saving source List and deleting intermediate variables
+saveRDS(data00, file = "./DataFrames/df_source_all_00.rds")
+rm(var_sel_nc, var_sel_sc, data_nc, data_sc)
+rm(data00)
+
+```
+
+
+
+&nbsp;
+
+***
+
+
+### 2. Tweet Scraping (Tweet Gathering)
+<br>
+
+#### 2.1 Preparation
+
+**Description:** Authentificating Twitter API.
+
+**NOTE:**
+
+ - `eval = FALSE` because of long download times
+
+
+```{r 02_01, include = TRUE, results = TRUE, eval = FALSE, message = FALSE, warning = FALSE}
+
+#### authentificating twitter api
+token <- create_token(app = "master_thesis",
+consumer_key = "YYY",
+consumer_secret =
+"YYY",
+access_token = "YYY",
+access_secret = "YYY")
+
+
+```
+<br>
+
+#### 2.2 Tweet Scrape
+
+**Description:**
+
+1. Filtering those candidates that have a Twitter-Account
+2. Scraping last 3'200 Tweets of all candidates with Twitter-Account
+
+<br>
+
+**Data:**
+
+ * input: `df_source_all_00.rds`
+ * output: `df_tweets_all.rds`
+
+<br>
+
+**NOTE:**
+
+ - `eval = FALSE` because of long download times
+ - this had to be done a few times, for Twitter's IPA has a rate limit.
+   - df_tweets_all_01.rds: up to id = 142
+   - df_tweets_all_02.rds: from id = 143 up to id = 823
+   - df_tweets_all_03.rds: from id = 824 up to id = 
+   - df_tweets_all_04.rds: from id = up to id =
+   - df_tweets_all_05.rds: from id = up to id = 3626
+   - df_tweets_all_06.rds: from id = 3627 up to id = 3806
+   - df_tweets_all_07.rds: from id = 3807 up to id =
+
+
+```{r 02_02, include = TRUE, results = TRUE, eval = FALSE, message = FALSE, warning = FALSE}
+
+#### Reading-in source list & filtering candidates with Twitter account
+data02 <- readRDS(file = "./DataFrames/df_source_all_00.rds") %>% 
+    filter(., !(LINK_Twitter %in% NA))
+
+
+#### Scraping last 3'200 Tweets in Loop
+# filtering base data list down, due to restrictions wrt. Twitters maximum of downloads
+data03 <- data02 %>% 
+  filter(., id >= 3807)
+
+# creating support data frame
+df_help0 <- rep(NA, 99) # creating support data frame
+
+# actual scraping loop
+for (i in 1:nrow(data03)) try({
+  df_help <- data03[i, "LINK_Twitter"] %>% 
+  sub(".*https://twitter.com/", "", .) %>% 
+  get_timeline(., n = 3200)
+  
+  df_help$lastname <- data03[i, "lastname"]
+  df_help$firstname <- data03[i, "firstname"]
+  df_help$party_short <- data03[i, "party_short"]
+  df_help$status <- data03[i, "status"]
+  df_help$year_of_birth <- data03[i, "year_of_birth"]
+  df_help$district <- data03[i, "district"] 
+  df_help$zip <- data03[i, "zip"]
+  df_help$gender <- data03[i, "gender"]
+  df_help$nc <- data03[i, "nc"]
+  df_help$sc <- data03[i, "sc"]
+  df_help$incumbent <- data03[i, "incumbent"]
+  df_help$id <- data03[i, "id"]
+  
+  df_help0 <- rbind(df_help0, df_help)
+  
+})
+
+# saving results
+df_tweets <- df_help0
+saveRDS(df_tweets, file = "./DataFrames/df_tweets_all_07.rds")
+
+# removing intermediate variables
+rm(df_help, df_tweets, data02, data03, df_help0, i)
+
+
+#### Binding all partial downloads
+# Reading-in
+df_tweets_all_01 <- readRDS("./DataFrames/df_tweets_all_01.rds")
+df_tweets_all_02 <- readRDS("./DataFrames/df_tweets_all_02.rds")
+df_tweets_all_03 <- readRDS("./DataFrames/df_tweets_all_03.rds")
+df_tweets_all_04 <- readRDS("./DataFrames/df_tweets_all_04.rds")
+df_tweets_all_05 <- readRDS("./DataFrames/df_tweets_all_05.rds")
+df_tweets_all_06 <- readRDS("./DataFrames/df_tweets_all_06.rds")
+df_tweets_all_07 <- readRDS("./DataFrames/df_tweets_all_07.rds")
+
+# Binding
+df_tweets_all <- rbind(df_tweets_all_01, df_tweets_all_02)
+df_tweets_all <- rbind(df_tweets_all, df_tweets_all_03)
+df_tweets_all <- rbind(df_tweets_all, df_tweets_all_04)
+df_tweets_all <- rbind(df_tweets_all, df_tweets_all_05)
+df_tweets_all <- rbind(df_tweets_all, df_tweets_all_06)
+df_tweets_all <- rbind(df_tweets_all, df_tweets_all_07)
+
+# saving results
+saveRDS(df_tweets_all, file = "./DataFrames/df_tweets_all.rds")
+
+# removing intermediate data
+rm(df_tweets_all_01, df_tweets_all_02, df_tweets_all_03,
+   df_tweets_all_04, df_tweets_all_05, df_tweets_all_06,
+   df_tweets_all_07, df_tweets_all)
+
+```
+
+
+&nbsp;
+
+***
+
+### 3. Checking for Completeness (all candidates cought?), Manually Rectifying & Scraping
+
+<br>
+
+#### 3.1 Missed tweets because of faulty first portion of link `https://www.twitter...` instead of `https://twitter...`
+
+**Description:** Some tweets were not caught because of a different pattern of twitter links in the source-list.
+
+**NOTE:**
+
+ - `eval = FALSE` to prevent doublification
+
+```{r 03_01, include = TRUE, results = TRUE, eval = FALSE, message = FALSE, warning = FALSE}
+
+# loading source list
+data04 <- readRDS(file = "./DataFrames/df_source_all_00.rds") %>% 
+    filter(., !(LINK_Twitter %in% NA))
+
+# loading entire corpus
+data05 <- readRDS(file = "./DataFrames/df_tweets_all.rds")
+
+# getting a list with *missed* ids
+lst_missed_base_01 <- setdiff(x = data04$id, y = data05$id) # identifying missed ids
+df_missed_01 <- data04 %>% 
+  filter(., id %in% lst_missed_base_01)
+
+# creating support data frame
+df_help0 <- rep(NA, 99) # creating support data frame
+
+# actual scraping loop
+for (i in 1:nrow(df_missed_01)) try({
+  df_help <- df_missed_01[i, "LINK_Twitter"] %>% 
+  sub(".*twitter.com/", "", .) %>% 
+  get_timeline(., n = 3200)
+  
+  df_help$lastname <- df_missed_01[i, "lastname"]
+  df_help$firstname <- df_missed_01[i, "firstname"]
+  df_help$party_short <- df_missed_01[i, "party_short"]
+  df_help$status <- df_missed_01[i, "status"]
+  df_help$year_of_birth <- df_missed_01[i, "year_of_birth"]
+  df_help$district <- df_missed_01[i, "district"] 
+  df_help$zip <- df_missed_01[i, "zip"]
+  df_help$gender <- df_missed_01[i, "gender"]
+  df_help$nc <- df_missed_01[i, "nc"]
+  df_help$sc <- df_missed_01[i, "sc"]
+  df_help$incumbent <- df_missed_01[i, "incumbent"]
+  df_help$id <- df_missed_01[i, "id"]
+  
+  df_help0 <- rbind(df_help0, df_help)
+  
+})
+
+# saving results
+df_tweets <- df_help0
+saveRDS(df_tweets, file = "./DataFrames/df_tweets_missed_01.rds")
+
+# merging second retreived 
+df_tweets_all <- readRDS(file = "./DataFrames/df_tweets_all.rds")
+df_tweets_missed_01 <- readRDS(file = "./DataFrames/df_tweets_missed_01.rds")
+df_tweets_all <- rbind(df_tweets_all, df_tweets_missed_01)
+
+#saving
+saveRDS(df_tweets_all, file = "./DataFrames/df_tweets_all.rds")
+
+
+# deleting intermediate variables
+rm(i, df_help, df_help0, lst_missed_base_01, df_tweets_missed_01, df_tweets_all, data04, data05, df_tweets)
+
+```
+<br>
+
+#### 3.2 Missed tweets because of faulty last portion of link (e.g. wrongly spelled names)
+
+
+**Description:** Some tweets are not caught because of faulty last portion of the twitter link in the source list.
+
+1. Rectifying Language Extension (e.g. "?lang=de") and Unknown Extension (e.g. "?c2...")
+2. Rectifying Other Faulty Links
+3. Rectifying/Checking accounts that did not tweet for a long time or are deleted
+
+
+**NOTE:**
+
+ - `eval = FALSE` to prevent doublification
+
+```{r 03_02, include = TRUE, results = TRUE, eval = FALSE, message = FALSE, warning = FALSE}
+
+######## 1. Rectifying Language Extension (e.g. "?lang=de") and Unknown Extension (e.g. "?c2...")
+# loading source list
+data06 <- readRDS(file = "./DataFrames/df_source_all_00.rds") %>% 
+    filter(., !(LINK_Twitter %in% NA))
+
+# loading entire corpus
+data07 <- readRDS(file = "./DataFrames/df_tweets_all.rds")
+
+# getting a df with *missed* ids
+lst_missed_base_02 <- setdiff(x = data06$id, y = data07$id) # identifying missed ids
+df_missed_02 <- data06 %>% 
+  filter(., id %in% lst_missed_base_02)
+
+# making a special dataframe for better scrutiny
+twitter <- rep(NA, 500)
+id <- rep(as.numeric(NA), 500)
+df_help <- cbind.data.frame(twitter, id)
+
+# getting rid of first portion of "LINK_Twitter"
+for (i in 1:nrow(df_missed_02)) try({
+  df_help[i, "twitter"] <- df_missed_02[i, "LINK_Twitter"] %>% 
+  sub(".*twitter.com/", "", .)
+  df_help[i, "id"] <- df_missed_02[i, "id"]
+})
+
+# getting rid of language indicator (does not work with "get_timeline()")
+df_help$twitter_cleaned <- sub(pattern = "?lang=de", "", df_help$twitter, fixed = TRUE)
+df_help$twitter_cleaned <- sub(pattern = "?lang=fr", "", df_help$twitter_cleaned, fixed = TRUE)
+df_help$twitter_cleaned <- sub(pattern = "?lang=en", "", df_help$twitter_cleaned, fixed = TRUE)
+df_help$twitter_cleaned <- sub(pattern = "?lang=ar", "", df_help$twitter_cleaned, fixed = TRUE)
+
+# manually rectifying faulty entries in source list, part 1
+df_help[which(df_help$id == 39), "twitter_cleaned"] <- "MichaelSchibli"
+df_help[which(df_help$id == 121), "twitter_cleaned"] <- "HarryLutolf"
+df_help[which(df_help$id == 176), "twitter_cleaned"] <-"_MMMXI_"
+df_help[which(df_help$id == 564), "twitter_cleaned"] <- "MelvinImhof"
+df_help[which(df_help$id == 1880), "twitter_cleaned"] <- "priskahafner"
+df_help[which(df_help$id == 2907), "twitter_cleaned"] <- "Fior000"
+df_help[which(df_help$id == 2986), "twitter_cleaned"] <- "DAngeloVladimir"
+df_help[which(df_help$id == 2999), "twitter_cleaned"] <- "CantoneFabienne"
+df_help[which(df_help$id == 3000), "twitter_cleaned"] <- "CamilleCantone"
+df_help[which(df_help$id == 3012), "twitter_cleaned"] <- "AnaBerclaz"
+df_help[which(df_help$id == 3651), "twitter_cleaned"] <- "NinaFehrDuesel"
+df_help[which(df_help$id == 4574), "twitter_cleaned"] <- "EAugstburger"
+
+# merging cleaned twitter name with missing df
+df_missed_02 <- merge(x = df_missed_02, y = df_help, by = "id")
+rm(df_help)
+
+# creating support data frame
+df_help0 <- rep(NA, 99) # creating support data frame
+
+# scraping missing tweets
+for (i in 1:nrow(df_missed_02)) try({
+  df_help <- df_missed_02[i, "twitter_cleaned"] %>% 
+  get_timeline(., n = 3200)
+  
+  df_help$lastname <- df_missed_02[i, "lastname"]
+  df_help$firstname <- df_missed_02[i, "firstname"]
+  df_help$party_short <- df_missed_02[i, "party_short"]
+  df_help$status <- df_missed_02[i, "status"]
+  df_help$year_of_birth <- df_missed_02[i, "year_of_birth"]
+  df_help$district <- df_missed_02[i, "district"] 
+  df_help$zip <- df_missed_02[i, "zip"]
+  df_help$gender <- df_missed_02[i, "gender"]
+  df_help$nc <- df_missed_02[i, "nc"]
+  df_help$sc <- df_missed_02[i, "sc"]
+  df_help$incumbent <- df_missed_02[i, "incumbent"]
+  df_help$id <- df_missed_02[i, "id"]
+  
+  df_help0 <- rbind(df_help0, df_help)
+  
+})
+
+# saving results
+df_tweets <- df_help0
+saveRDS(df_tweets, file = "./DataFrames/df_tweets_missed_02.rds")
+
+# merging third retreived and save
+df_tweets_all <- readRDS(file = "./DataFrames/df_tweets_all.rds")
+df_tweets_missed_02 <- readRDS(file = "./DataFrames/df_tweets_missed_02.rds")
+df_tweets_all <- rbind(df_tweets_all, df_tweets_missed_02)
+saveRDS(df_tweets_all, file = "./DataFrames/df_tweets_all.rds")
+
+# removing intermediate variables
+rm(df_help, df_help0, df_tweets, data06, data07, i, df_tweets_missed_02, lst_missed_base_02)
+
+
+######## 2. Rectifying Other Faulty Links
+data08 <- readRDS(file = "./DataFrames/df_source_all_00.rds") %>% 
+    filter(., !(LINK_Twitter %in% NA))
+
+# loading entire corpus & identifying missing ids
+data09 <- readRDS(file = "./DataFrames/df_tweets_all.rds")
+lst_missed_base_03 <- setdiff(x = data08$id, y = data09$id) # automatically
+# manually
+lst_missed_base_03a <- c(2907, 2986, 2999, 3000, 3012, 3651, 4574)
+twitter_cleaned <- c("Fior000", "DAngeloVladimir", "CantoneFabienne", "CamilleCantone", "AnaBerclaz", "NinaFehrDuesel", "EAugstburger")
+df_help_02 <- cbind.data.frame(id = lst_missed_base_03a, twitter_cleaned = twitter_cleaned)
+
+# manufacturing auxillary data frame for better scrutiny
+df_help_03 <- data08 %>% 
+  filter(., id %in% lst_missed_base_03a)
+df_missed_03 <- merge(x = df_help_03, y = df_help_02, by = "id")
+rm(df_help)
+
+
+# scraping missing Links
+df_help0 <- rep(NA, 99) # creating support data frame
+
+# actual scraping loop
+for (i in 1:nrow(df_missed_03)) try({
+  df_help <- df_missed_03[i, "twitter_cleaned"] %>% 
+  get_timeline(., n = 3200)
+  
+  df_help$lastname <- df_missed_03[i, "lastname"]
+  df_help$firstname <- df_missed_03[i, "firstname"]
+  df_help$party_short <- df_missed_03[i, "party_short"]
+  df_help$status <- df_missed_03[i, "status"]
+  df_help$year_of_birth <- df_missed_03[i, "year_of_birth"]
+  df_help$district <- df_missed_03[i, "district"] 
+  df_help$zip <- df_missed_03[i, "zip"]
+  df_help$gender <- df_missed_03[i, "gender"]
+  df_help$nc <- df_missed_03[i, "nc"]
+  df_help$sc <- df_missed_03[i, "sc"]
+  df_help$incumbent <- df_missed_03[i, "incumbent"]
+  df_help$id <- df_missed_03[i, "id"]
+  
+  df_help0 <- rbind(df_help0, df_help)
+  
+})
+
+# saving results
+df_tweets <- df_help0
+saveRDS(df_tweets, file = "./DataFrames/df_tweets_missed_03.rds")
+
+# merging third retreived and save
+df_tweets_all <- readRDS(file = "./DataFrames/df_tweets_all.rds")
+df_tweets_missed_03 <- readRDS(file = "./DataFrames/df_tweets_missed_03.rds")
+df_tweets_all <- rbind(df_tweets_all, df_tweets_missed_03)
+saveRDS(df_tweets_all, file = "./DataFrames/df_tweets_all.rds")
+
+# removing auxillary variables & data frames
+rm(data08, data09, i, df_help, df_help0, df_help_02, df_help_03, lst_missed_base_03,
+   lst_missed_base_03a, df_tweets, df_missed_03, df_tweets_missed_03, twitter_cleaned, df_tweets_all)
+
+
+
+###### 3. Rectifying/Checking accounts that did not tweet for a long time or are deleted
+# reading-in source list
+data10 <- readRDS(file = "./DataFrames/df_source_all_00.rds") %>% 
+    filter(., !(LINK_Twitter %in% NA))
+
+# loading entire corpus & identifying missing ids
+data11 <- readRDS(file = "./DataFrames/df_tweets_all.rds")
+lst_missed_base_04 <- setdiff(x = data10$id, y = data11$id) # getting list off missing ids
+
+# defining manually elaborated non-existent twitter-ids (all incumbent checkt, rest erratic)
+rm_id <- c(24, 42, 58, 60, 61, 74, 75, 84, 85, 102, 112, 123, 145, 541
+           , 571, 582, 590, 593, 705, 999, 1580, 1733, 1914, 2420, 3012,
+           3585, 4523, 4597)
+
+
+lst_missed_04 <- setdiff(x = lst_missed_base_04, y = rm_id)
+
+
+# removing "non-existant", "private only" or "never-tweeted"
+df_missed_04 <- data10 %>% 
+  filter(., id %in% lst_missed_04)
+
+# manually adjusting twitter handle for incumbent
+df_missed_04[which(df_missed_04$id == 167), "LINK_Twitter"] <- "	https://twitter.com/andreas_glarner"
+df_missed_04[which(df_missed_04$id == 556), "LINK_Twitter"] <- "	https://twitter.com/mayagraf_bl"
+df_missed_04[which(df_missed_04$id == 3665), "LINK_Twitter"] <- "	https://twitter.com/FabianMolinaNR"
+
+
+# scraping missing Links
+df_help0 <- rep(NA, 99) # creating support data frame
+
+# actual scraping loop
+for (i in 1:nrow(df_missed_04)) try({
+  df_help <- df_missed_04[i, "LINK_Twitter"] %>% 
+  sub(".*twitter.com/", "", .) %>% 
+  get_timeline(., n = 3200)
+  
+  df_help$lastname <- df_missed_04[i, "lastname"]
+  df_help$firstname <- df_missed_04[i, "firstname"]
+  df_help$party_short <- df_missed_04[i, "party_short"]
+  df_help$status <- df_missed_04[i, "status"]
+  df_help$year_of_birth <- df_missed_04[i, "year_of_birth"]
+  df_help$district <- df_missed_04[i, "district"] 
+  df_help$zip <- df_missed_04[i, "zip"]
+  df_help$gender <- df_missed_04[i, "gender"]
+  df_help$nc <- df_missed_04[i, "nc"]
+  df_help$sc <- df_missed_04[i, "sc"]
+  df_help$incumbent <- df_missed_04[i, "incumbent"]
+  df_help$id <- df_missed_04[i, "id"]
+  
+  df_help0 <- rbind(df_help0, df_help)
+  
+})
+
+# saving results
+df_tweets <- df_help0
+saveRDS(df_tweets, file = "./DataFrames/df_tweets_missed_04.rds")
+
+# merging third retreived and save
+df_tweets_all <- readRDS(file = "./DataFrames/df_tweets_all.rds")
+df_tweets_missed_04 <- readRDS(file = "./DataFrames/df_tweets_missed_04.rds")
+df_tweets_all <- rbind(df_tweets_all, df_tweets_missed_04)
+saveRDS(df_tweets_all, file = "./DataFrames/df_tweets_all.rds")
+
+# removing auxillary variables & data frames
+rm(data10, data11, i, df_help, df_help0, lst_missed_base_04,
+   lst_missed_04, df_tweets, df_missed_04, df_tweets_missed_04, df_tweets_all)
+
+
+
+
+############
+data12 <- readRDS(file = "./DataFrames/df_source_all_00.rds") %>% 
+    filter(., !(LINK_Twitter %in% NA))
+
+# loading entire corpus & identifying missing ids
+data13 <- readRDS(file = "./DataFrames/df_tweets_all.rds")
+lst_help <- setdiff(x = data12$id, y = data13$id) # automatically
+
+## substracting non-existent twitter ids
+# defining manually checked ids
+rm_id <- c(24, 42, 58, 60, 61, 74, 75, 84, 85, 102, 112, 123, 145, 541,
+           571, 582, 590, 593, 705, 999, 1580, 1733, 1914, 2420, 3012,
+           3585, 4523, 4597)
+
+# elaborating remaining missing
+lst_missed_05 <- setdiff(x = lst_help, y = rm_id)
+
+# filtering source list for remaining
+df_missed_05 <- data12 %>% 
+  filter(., id %in% lst_missed_05) 
+
+# getting rid of language indicator for the second time (does not work with "get_timeline()")
+df_missed_05$LINK_Twitter <- sub(pattern = "?lang=de", "", df_missed_05$LINK_Twitter, fixed = TRUE)
+df_missed_05$LINK_Twitter <- sub(pattern = "?lang=fr", "", df_missed_05$LINK_Twitter, fixed = TRUE)
+df_missed_05$LINK_Twitter <- sub(pattern = "?lang=en", "", df_missed_05$LINK_Twitter, fixed = TRUE)
+df_missed_05$LINK_Twitter <- sub(pattern = "?lang=ar", "", df_missed_05$LINK_Twitter, fixed = TRUE)
+
+# renaming twitter handles (due to name change of mistake in source list)
+df_missed_05$LINK_Twitter <- sub(pattern = "yvohofer/", "yvohofer", df_missed_05$LINK_Twitter, fixed = TRUE)
+df_missed_05$LINK_Twitter <- sub(pattern = "rahel_estermann/", "rahel_estermann", df_missed_05$LINK_Twitter, fixed = TRUE)
+df_missed_05$LINK_Twitter <- sub(pattern = "dominiccmueller/", "dominiccmueller", df_missed_05$LINK_Twitter, fixed = TRUE)
+df_missed_05$LINK_Twitter <- sub(pattern = "nr_mayagraf", "mayagraf_bl", df_missed_05$LINK_Twitter, fixed = TRUE)
+
+## scraping missing Links
+# creating support data frame
+df_help0 <- rep(NA, 99)
+
+# looping trough scraping
+for (i in 1:nrow(df_missed_05)) try({
+  df_help <- df_missed_05[i, "LINK_Twitter"] %>% 
+  sub(".*twitter.com/", "", .) %>% 
+  get_timeline(., n = 3200)
+  
+  df_help$lastname <- df_missed_05[i, "lastname"]
+  df_help$firstname <- df_missed_05[i, "firstname"]
+  df_help$party_short <- df_missed_05[i, "party_short"]
+  df_help$status <- df_missed_05[i, "status"]
+  df_help$year_of_birth <- df_missed_05[i, "year_of_birth"]
+  df_help$district <- df_missed_05[i, "district"] 
+  df_help$zip <- df_missed_05[i, "zip"]
+  df_help$gender <- df_missed_05[i, "gender"]
+  df_help$nc <- df_missed_05[i, "nc"]
+  df_help$sc <- df_missed_05[i, "sc"]
+  df_help$incumbent <- df_missed_05[i, "incumbent"]
+  df_help$id <- df_missed_05[i, "id"]
+  
+  df_help0 <- rbind(df_help0, df_help)
+  
+})
+
+# saving results
+df_tweets <- df_help0
+saveRDS(df_tweets, file = "./DataFrames/df_tweets_missed_05.rds")
+
+# merging third retrieved and save
+df_tweets_all <- readRDS(file = "./DataFrames/df_tweets_all.rds")
+df_tweets_missed_05 <- readRDS(file = "./DataFrames/df_tweets_missed_05.rds")
+df_tweets_all <- rbind(df_tweets_all, df_tweets_missed_05)
+saveRDS(df_tweets_all, file = "./DataFrames/df_tweets_all.rds")
+
+# removing auxillary variables
+rm(df_help, i, df_help0, df_tweets_all, df_tweets_missed_05, lst_missed_05, df_missed_05_base)
+
+
+
+
+
+
+
+###### 3. Rectifying/Checking accounts that did not tweet for a long time or are deleted
+# reading-in source list
+data10 <- readRDS(file = "./DataFrames/df_source_all_00.rds") %>% 
+    filter(., !(LINK_Twitter %in% NA))
+
+# loading entire corpus & identifying missing ids
+data11 <- readRDS(file = "./DataFrames/df_tweets_all.rds")
+lst_missed_base_04 <- setdiff(x = data10$id, y = data11$id) # getting list off missing ids
+
+
+############♣
+
+data14 <- readRDS(file = "./DataFrames/df_source_all_00.rds") %>% 
+    filter(., !(LINK_Twitter %in% NA))
+
+# loading entire corpus & identifying missing ids
+data15 <- readRDS(file = "./DataFrames/df_tweets_all.rds")
+lst_help <- setdiff(x = data14$id, y = data15$id) # automatically
+
+## substracting non-existent twitter ids
+# defining manually checked ids
+rm_id <- c(24, 42, 58, 60, 61, 74, 75, 84, 85, 102, 112, 123, 145, 541,
+           571, 582, 590, 593, 705, 999, 1580, 1733, 1914, 2420, 3012,
+           3585, 4523, 4597)
+
+# elaborating remaining missing
+lst_missed_06 <- setdiff(x = lst_help, y = rm_id)
+
+# filtering source list for remaining
+df_missed_06 <- data14 %>% 
+  filter(., id %in% lst_missed_06) 
+
+# removing terribly large files
+rm(data14, data15)
+
+# getting rid of language indicator for the second time (does not work with "get_timeline()")
+df_missed_06$LINK_Twitter <- sub(pattern = "?lang=de", "", df_missed_06$LINK_Twitter, fixed = TRUE)
+df_missed_06$LINK_Twitter <- sub(pattern = "?lang=fr", "", df_missed_06$LINK_Twitter, fixed = TRUE)
+df_missed_06$LINK_Twitter <- sub(pattern = "?lang=en", "", df_missed_06$LINK_Twitter, fixed = TRUE)
+df_missed_06$LINK_Twitter <- sub(pattern = "?lang=ar", "", df_missed_06$LINK_Twitter, fixed = TRUE)
+df_missed_06$LINK_Twitter <- sub(pattern = "yvohofer/", "yvohofer", df_missed_06$LINK_Twitter, fixed = TRUE)
+df_missed_06$LINK_Twitter <- sub(pattern = "rahel_estermann/", "rahel_estermann", df_missed_06$LINK_Twitter, fixed = TRUE)
+df_missed_06$LINK_Twitter <- sub(pattern = "dominiccmueller/", "dominiccmueller", df_missed_06$LINK_Twitter, fixed = TRUE)
+df_missed_06$LINK_Twitter <- sub(pattern = "nr_mayagraf", "mayagraf_bl", df_missed_06$LINK_Twitter, fixed = TRUE)
+
+saveRDS(df_missed_06, file = "./DataFrames/df_missed_06.rds")
+
+# creating support data frame
+df_help0 <- rep(NA, 99) # creating support data frame
+
+# actual scraping loop
+for (i in 1:nrow(df_missed_06)) try({
+  df_help <- df_missed_06[i, "LINK_Twitter"] %>% 
+  sub(".*twitter.com/", "", .) %>% 
+  get_timeline(., n = 3200)
+  
+  df_help$lastname <- df_missed_06[i, "lastname"]
+  df_help$firstname <- df_missed_06[i, "firstname"]
+  df_help$party_short <- df_missed_06[i, "party_short"]
+  df_help$status <- df_missed_06[i, "status"]
+  df_help$year_of_birth <- df_missed_06[i, "year_of_birth"]
+  df_help$district <- df_missed_06[i, "district"] 
+  df_help$zip <- df_missed_06[i, "zip"]
+  df_help$gender <- df_missed_06[i, "gender"]
+  df_help$nc <- df_missed_06[i, "nc"]
+  df_help$sc <- df_missed_06[i, "sc"]
+  df_help$incumbent <- df_missed_06[i, "incumbent"]
+  df_help$id <- df_missed_06[i, "id"]
+  
+  df_help0 <- rbind(df_help0, df_help)
+  
+})
+
+# saving missed
+df_tweets_missed_06 <- df_help0
+saveRDS(df_tweets_missed_06, file = "./DataFrames/df_tweets_missed_06.rds")
+
+# binding to full data set and saving (full data set)
+df_tweets_all <- readRDS("./DataFrames/df_tweets_all.rds")
+df_tweets_all <- rbind(df_tweets_all, df_tweets_missed_06)
+saveRDS(df_tweets_all, file = ("./DataFrames/df_tweets_all.rds"))
+
+# removing auxillary variables
+rm(i, df_help, df_help0, df_missed_06, df_tweets_all)
+
+
+## Very last check
+# manually scraping tweets
+df_missed_07 <- (get_timeline("michelle__huber", n = 3200))
+
+# getting the basic informaton of id 3669
+df_basic_mh <- readRDS(file = "./DataFrames/df_source_all_00.rds") %>% 
+  filter(., id %in% 3669) %>% 
+  select(., lastname, firstname, party_short, year_of_birth, gender,
+         district, zip, nc, sc, incumbent, id)
+
+# loading the complete corpus
+df_tweets_all <- readRDS("./DataFrames/df_tweets_all.rds")
+
+# merging tweets, basic information and complete corpus
+df_tweets_all <- cbind(df_missed_07, df_basic_mh) %>% 
+  rbind(., df_tweets_all) %>% 
+  arrange(., id)
+
+# saving corpus
+saveRDS(df_tweets_all, file = "./DataFrames/df_tweets_all.rds")
+
+# removing auxillary variables
+rm(df_basic_07, df_missed_07, df_tweets_all)
+
+```
