@@ -4,7 +4,15 @@ Respository for Master Thesis / Markus Rottmann, 97-919-294
 This _respository_ contains the _R_- and _NetLogo_-code for my Master Thesis **"Simulation of Policies against Information-Pollution on Twitter"**.
 + all input and output data are referenced in the respective codes. 
 + for easy viewing, klick the link below each description or download the .html version and view it in your browser.
-
++ following data sets, containing tweets are not included for privacy reasons:
+  - _corp_all_de.rds_: corpus containing tweets
+  - _df_tweets_all.rds_: data frame containing all tweets, non-clean
+  - _df_tweets_clean_all.rds_: data frame containing all tweets, clean
+  - _df_tweets_clean_de.rds_: data frame conatining all tweets, non-italian, non-french, clean
+  - _df_tweets_clean_de_w_ipind.rds_: data frame conatining all tweets, non-italian, non-french, clean, with indicator of information pollution. 
++ following basig data sets, containing personal information on candidates of Swiss 2019 election:
+  - _2019_chvote_councilofstates.csv_: data frame containing personal information of candidates for the Council of States.
+  - _2019_chvote_nationalcouncil.csv_:  data frame containing personal information of candidates for the national council.
 
 &nbsp;
 
