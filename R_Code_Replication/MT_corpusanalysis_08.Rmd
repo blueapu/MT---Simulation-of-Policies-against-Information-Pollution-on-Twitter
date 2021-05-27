@@ -1,0 +1,567 @@
+---
+title: "MT **Corpus Analysis**  08"
+author: "Markus Rottmann"
+date: "2021 04 10"
+output:
+  html_document:
+      toc: true
+      toc_depth: 5
+---
+
+```{r setup, include = TRUE, eval = TRUE, warning = FALSE, results = FALSE, message = FALSE}
+
+## 0.1: clearing memory
+rm(list=ls(all=T))
+
+## 0.2 defining options
+options(repos = "https://cran.rstudio.com")
+options(stringsAsFactors = FALSE)
+knitr::opts_chunk$set(echo = TRUE, fig.width = 7, fig.height = 5)
+
+
+## 0.3 loading (and installing) packages
+# defining required packages
+req_packages <- c("dplyr", "knitr", "kableExtra", "rvest", "igraph",
+"ggplot2", "tibble", "quanteda", "stargazer", "tidyr", "stringr", "lme4",
+"rtweet", "lubridate")
+
+# checking, if already installed
+new_packages <- req_packages[!(req_packages %in% installed.packages()[,"Package"])]
+
+# installing (downloading) missing packages
+if(length(new_packages) > 0) {
+  install.packages(new_packages)
+} 
+
+# loading required packages
+lapply(req_packages, library, character.only = TRUE) 
+
+# removing auxillary variabels
+rm(req_packages, new_packages) 
+
+# frequenty needed packages: ("dplyr", "knitr", "kableExtra", "rvest", "igraph",
+# "pageviews", "WikipediR", "ggplot2", "tibble", "quanteda", "stargazer", "tidyr",
+# "stringr", "lme4", "rtweet", "lubridate")
+
+
+
+```
+
+***
+
+&nbsp;
+
+
+#### Description
+
+This code identifies tweets that contain information pollution on corona in following two steps:
+
+  1. Identifying all Corona-Tweets (Including Stratifying Collection of Tweets)
+  2. Identifying Information Pollution Within Corona-Tweets
+  
+ <br>
+
+**Data:**
+
+ * **input:** 
+   - `df_tweets_all.rds` data frame containing all scraped tweets.
+   - keywords from dictionary used by Gilardi et al. (2021); refer to below.
+   - .csv-sheet `output_classifying.csv` containing all manually classified ip-tweets.
+   - vector all network members `namestring_nwmembers00.rds`.
+
+<br>
+ 
+ * **output:** 
+   - cleaned data frame `df_tweets_clean_all.rds` containing all tweets sent in 2020.
+   - cleaned and "german data frame `DataFrames/df_tweets_clean_de.rds`, containing all non-italian and non-french tweets in 2021.
+   - cleaned and "german" corpus `corp_all_de.rds` of all non-italian and non-french tweets in 2020.
+   - vector of text-IDs `vct_crn_txt.rds` identifying all corona tweets in 2020.
+   - vectos `vct_ntr_txt.rds`, `vct_sup_txt.rds` and `vct_opp_txt.rds` identifying the respective ip tweet types (neural, opposing, supporting)
+   - dictionary `dict_crn.rds` containing keywords for detecting corona tweets as per Gilardi et al. (2021).
+   - vector of text-IDs `vct_ip_txt.rds` identifying all corona-ip tweets in 2020.
+   - dictionary `dict_ip.rds` containing keywords for detecting corona-ip tweets as distilled from webpage [_correctiv!_](https://correctiv.org/faktencheck/hintergrund/2021/03/29/coronavirus-faktenchecks-diese-behauptungen-hat-correctiv-geprueft/).
+   - .csv-sheet `input_classifying.csv` containing all identified corona-ip tweets, ready for manual classification.
+
+
+
+&nbsp;
+
+***
+
+
+
+#### 1. Identifying all Corona-Tweets
+
+**Description:** This code searches for all Corona-Tweets. To this end, the same corpus as Gilardi et al. (2021) is used.
+
+##### 1.1 Preparing Data Set (aggregating sc and na canditature, getting rid of NAs, counting tweets sent by network members)
+
+```{r 01_01, include = TRUE, results = TRUE, eval = TRUE, message = FALSE, warning = FALSE}
+
+#### 1. preparing scraped data set ----------------------------------------
+
+## Basic Preparation-------
+data00 <- readRDS("./DataFrames/df_tweets_all.rds")
+vct00 <- readRDS(file = "./DataFrames/namestring_nwmembers00.rds")
+
+# creating simpler variable of posting date
+data00$date <- data00$created_at %>% 
+  str_extract(., "\\d{4}-\\d{2}-\\d{2}") %>% 
+  as.character(.) %>% 
+  as.Date(., "%Y-%m-%d")
+
+# restricting tweets to all tweets in 2020
+data01 <- data00 %>% 
+  filter(., date >= "2020-01-01") %>% 
+  filter(., date <= "2020-12-31") %>% 
+  dplyr::select(., -c("id"))
+
+
+## 1.1 Aggregating variables "nc", "sc" and "incunbent" -----------------------
+# There are duplicated due to candidates running for both,
+# 
+# NOTE: the following showed strange behavior...
+# ..several forcing to *numerics* was required
+
+# forcing numerics, NO. 1
+data02 <- data01
+data02$sc <- as.numeric(as.character(data02$sc))
+data02$nc <- as.numeric(as.character(data02$nc))
+data02$incumbent <- as.numeric(as.integer(data02$incumbent))
+
+# aggregation (1/2) via funs "na.rm"
+data03 <- data02
+data03$nc <- ifelse(data03$nc == 0, NA, data03$nc)
+data03$sc <- ifelse(data03$sc == 0, NA, data03$sc)
+data03$incumbent <- ifelse(data03$incumbent == 0, NA, data03$incumbent)
+# forcing numerics, NO. 2
+data03$incumbent <- as.numeric(as.integer(as.character(data03$incumbent)))
+data04 <- aggregate(x = data03[c("nc", "sc", "incumbent")],
+                    by = list(name = data03$status_id), min, na.rm = TRUE)
+
+# aggregating (2/2) turning NAs back to "0"
+data05 <- data04
+# forcing numerics, NO. 3
+data05$sc <- as.numeric(as.integer(data05$sc))
+data05$nc <- as.numeric(as.integer(data05$nc))
+data05$incumbent <- as.numeric(as.integer(data05$incumbent))
+data05$sc <- ifelse(is.na(data05$sc), 0, data05$sc)
+data05$nc <- ifelse(is.na(data05$nc), 0, data05$nc)
+data05$incumbent <- ifelse(is.na(data05$incumbent), 0, data05$incumbent)
+
+
+## 1.2 searching for, and tyding-up candidates that...
+# ...ran for sc and nc for different parties
+test00 <- data01 %>% 
+  dplyr::select(., user_id, party_short)
+
+# identifying user_id's with two different parties
+test02 <- unique(test00[, c("user_id", 
+                            "party_short")])
+test03 <- test02[duplicated(test02$user_id), ]
+test04 <- test03[1, 1]
+
+# getting different party names (test05)
+test05 <- test02 %>% 
+  dplyr::filter(., user_id %in% test04)
+print(test05)
+
+# Harmonizing both parties to "Grüne"
+data06 <- data01
+data06[data06$user_id == test04, "party_short"] <- "Grüne"
+
+# merging aggregated df (data05) with tydied data frame (data06)
+data07 <- data05 %>% 
+  dplyr::select(., name, nc, sc, incumbent) %>% 
+  `colnames<-`(c("status_id", "nc", "sc", "incumbent"))
+
+data08 <- data06 %>% 
+  dplyr::select(., c("status_id", "lastname", "firstname",
+              "text", "party_short", "gender",
+              "user_id", "year_of_birth", "zip",
+              "date", "lang", "mentions_screen_name",
+              "screen_name"))
+
+data09 <- dplyr::inner_join(x = data07,
+                            y = data08,
+                            by = "status_id") %>% 
+          unique.data.frame(.)
+
+# test for duplications -> o.k.
+test07 <- data09 %>% 
+  filter(., duplicated.data.frame(.))
+
+## 1.3 Testing and Fixing NAs
+# test for NAs
+any(is.na(data09))
+
+# search for NAs
+test08 <- data09 %>% 
+  filter(., (status_id %in% NA |
+             nc %in% NA |
+             sc %in% NA |
+             incumbent %in% NA |
+             lastname %in% NA |
+             firstname %in% NA |
+             text %in% NA |
+             party_short %in% NA |
+             gender %in% NA |
+             user_id  %in% NA |
+             year_of_birth %in% NA |
+             zip %in% NA |
+             lang %in% NA)
+         )
+
+# fixing Franz Muheim (living abroad, candidating for Zürich
+data10 <- data09
+data10[data10$user_id == "26111618", "zip"] <- 8000
+# fixing Jon Pult, no year of birth
+data10[data10$user_id == 116451792, "year_of_birth"] <- 1984
+# fixing Reynard Mathias, no year of birth
+data10[data10$user_id == 406232148, "year_of_birth"] <- 1987
+# fixing Nicolas Kocher, no year of birth
+data10[data10$user_id == 3826916007, "year_of_birth"] <- 1990
+# fixing Robin Röösli, no year of birth
+data10[data10$user_id == 2277973284, "year_of_birth"] <- 1995
+# fixing Anne-Laure Secco, no year of birth
+data10[data10$user_id == 801407413358395392, "year_of_birth"] <- 1986
+# fixinig Lukas Füeg, no year of birth
+data10[data10$user_id == 2848311213, "year_of_birth"] <- 1993
+# fixing Mirian Kobler-Betancourt, no year of birth
+data10[data10$user_id == 4854335573, "year_of_birth"] <- 1971
+
+# check, if there are still any NAs
+any(is.na(data10))
+
+# calculating age in 2020
+data10$age2020 <- (2020 - data10$year_of_birth) # calculating age in 2020
+
+
+## odering for date, lastname, firstname and assigning identifyer...
+# ..."text_id"(needed for next code chunk because quanteda...
+# ...cannot handle large numbers of status_id)
+data11 <- data10 %>%
+  arrange(., date, lastname, firstname) %>% # ordering
+  mutate(text_id = row_number()) %>%        # identifyer
+  dplyr::select(text_id, date, lastname, firstname,
+         text, party_short, gender, year_of_birth,
+         zip, nc, sc, incumbent,
+         status_id, user_id, lang,
+         screen_name, mentions_screen_name, age2020)
+
+# getting number of all tweets by all candidates sent in 2020
+data11 %>%  
+  nrow(.)
+
+# getting number of tweets sent by all network members in 2020
+data11 %>% 
+  dplyr::filter(., screen_name %in% vct00) %>% 
+  nrow(.)
+
+# filtering for German, English and "undefined" language tweets
+data12 <- data11 %>% 
+  dplyr::filter(., lang %in% c("de", "und", "en") )
+
+## getting statistics on tweets
+# number of candidates tweeting in German, English and "undefined"
+data12$user_id %>% 
+  unique(.) %>% 
+  length(.)
+
+# number of German, English and "undefined" language tweets
+data12 %>% 
+  nrow(.)
+
+## saving prepared data and deleting plethora of...
+# ...auxillary variables
+saveRDS(data11, file = "./DataFrames/df_tweets_clean_all.rds") # saving tweets
+saveRDS(data12, file = "./DataFrames/df_tweets_clean_de.rds") # saving tweets
+rm(list= ls(pattern= "data"))
+rm(list= ls(pattern=  "test"))
+rm(list= ls(pattern=  "vct"))
+
+```
+<br>
+
+
+##### 1.2 identifying all Corona-Tweets
+
+```{r 01_02, include = TRUE, results = TRUE, eval = TRUE, message = FALSE, warning = FALSE}
+
+#### Loading Data (refer to above code-chunk) -----
+# loading data
+data00 <- readRDS(file = "./DataFrames/df_tweets_clean_de.rds")
+vct00 <- readRDS(file = "./DataFrames/namestring_nwmembers00.rds")
+
+# filtering down to instances that communicated with each other
+data01 <- data00 %>% 
+  dplyr::filter(., screen_name %in% vct00)
+
+
+#### Identifying Corona-Related Tweets ----------
+
+## Creating Corpus
+# transforming df in corpus
+corp00 <- data00 %>% 
+  corpus(., text_field = "text")
+
+# assigning "status_id" as identifyer in corpus
+docnames(corp00) <- data00$text_id
+
+
+## creating dictionary for identifying corona tweets
+# creating vector containing keywords
+kywrd_crn <- c("*corona*", "*covid19*", "*coronaschweiz*", "*coronach*", "*coronavirus*",
+              "*coronavirusschweiz*", "*epidemie*", "*social distancing*", "*coronatests*",
+              "*pandemie*", "*corona-pandemie*", "*coronakrise*", "*covid19ch*", "*covidch*",
+              "*bag ofsp ufsp*", "*coronainfoch*", "*swisscovid*", "*pandemie*", "*covid*",
+              "*coronakrise*", "*swiss-covid-app*", "*coronapandemie*", "*corona-sommer*",
+              "*covid-19-erkrankungen*", "*corona-kredit*", "*corona-infektionen*", "*lockdown*",
+              "*schutzmaske*", "*beatmungsgerat*", "*beatmungsgerate*", "*pand´emie*",
+              "*masques *", "*crise sanitaire*", "*covid-19*", "*sars-cov-2*", "*coronagraben*",
+              "*swisscovid*", "*coronavirus*", "*covid*", "*epid´emie*", "*social distancing*",
+              "*garder ses distances*", "*maske*", "*contact tracing*", "*masquer*", "*maschera*",
+              "*respirator*", "*hygienemaske*", "*ffp2*", "*atemschutz*", "*swisscovid*", "*covidioten*",
+              "*neuinfektionen*", "*hospitalisierungsrate*", "*covidapp*", "*coronaapp*",
+              "*swiss-covid-app*", "*contact-tracing-app*", "*dp?3t*", "*swisscovidapp*",
+              "*epidemiologisch*", "*antikorper*", "*maskenpflicht*", "*maskenzwang*", "*maskenwahn*",
+              "*herdenimunitat*", "*coronawarnapp*", "*contact-tracing*", "*contact tracing*", "*besondere lage*",
+              "*ausserordendliche lage*", "*swisscovid-app*", "*corona-app*", "*covid-codes*", "*corona app*",
+              "*corona warn app*", "*contact tracing app*", "*kontaktverfolgungs app*", "*kontakt ruckverfolgung*")
+
+# creating dictionary for "corona-tweets"
+dict_crn <- dictionary((list(crn = kywrd_crn)))
+
+
+## applying dictonary on corpus
+# creating overview-list with all texts that matched keywords
+df_crn_texts <- corp00 %>%
+  kwic(., pattern = dict_crn, window = 0, valuetype = "glob") %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., docname, keyword, pattern) %>% 
+  `colnames<-`(c("text_id", "expr_crn", "dict"))
+
+# printing texts that matched
+df_crn_texts %>% 
+  kable(., caption = "Overview on Texts on Covid-19",
+          row.names = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "responsive"), 
+  full_width = FALSE, position = "center") %>% 
+    scroll_box(., height = "800px")
+
+# extracting vector with status_ids of corona tweets (for later use)
+vct_crn_txt <- as.vector(df_crn_texts$text_id)
+
+# getting number of corona-related tweets
+vct_crn_txt %>% 
+  unique(.) %>% 
+  length(.)
+
+# getting number of hits (multiple hits in single tweet possible)
+vct_crn_txt %>% 
+  length(.)
+
+# creating df with keyword-hit frequency
+df_keywrd_freq <- corp00 %>%
+  kwic(., pattern = dict_crn, window = 0, valuetype = "glob") %>% 
+  count(., keyword) %>% 
+  as.data.frame(.) %>% 
+  `colnames<-`(c("Corona Keywords", "Hits")) %>% 
+  arrange(., desc(Hits))
+
+# printing keyword-hit frequency
+# df_keywrd_freq %>% 
+#   kable(., caption = "Number of Keyword Mentions [-]",
+#           row.names = FALSE) %>%
+#   kable_styling(bootstrap_options = c("striped", "responsive"), 
+#   full_width = FALSE, position = "center") %>% 
+#     scroll_box(., height = "800px")
+
+
+## saving results and deleting auxillary variables
+# text-id of corona-related texts
+saveRDS(vct_crn_txt, file = "./DataFrames/vct_crn_txt.rds")
+# corpus (all non-french and non-italian)
+saveRDS(corp00, file = "./DataFrames/corp_all_de.rds")
+# dictionary corona tweets
+saveRDS(dict_crn, file = "./DataFrames/dict_crn.rds")
+# removing objects
+rm(list= ls(pattern= "data"))
+rm(list= ls(pattern= "test"))
+rm(list= ls(pattern= "df_"))
+rm(list= ls(pattern= "dict"))
+rm(list= ls(pattern= "corp"))
+rm(list= ls(pattern= "vct"))
+rm(list= ls(pattern= "kywrd"))
+
+```
+
+
+&nbsp;
+
+***
+
+#### 2. Identifying Information Pollution Types Within Corona-Tweets
+
+##### 2.1 Identifying Information Pollution Within Corona-Tweets
+
+```{r 02_01, include = TRUE, results = TRUE, eval = TRUE, message = FALSE, warning = FALSE}
+
+#### Loading Data (refer to above code-chunk) ------------------
+# all German, English and Undefined Language Tweets
+data00 <- readRDS(file = "./DataFrames/df_tweets_clean_de.rds")
+# corpus of all German, English and Undefined Language Tweets
+corp00 <- readRDS(file = "./DataFrames/corp_all_de.rds")
+# vector containing corona tweets
+vct00 <- readRDS(file = "./DataFrames/vct_crn_txt.rds")
+
+
+#### Identifying Corona-Information Pollution Tweets ------------------------
+
+# distilling corona tweets only 
+corp01 <- corp00 %>% 
+   corpus_subset(., text_id %in% vct00)
+corp01 %>% 
+  summary(.) %>% 
+  head(., n = 10)
+
+## creating dictionary for identifying corona-ip tweets
+# creating vector containing keywords
+kywrd_ip <- c("*plandemie*", "*bhakdi*", "*hildmann*",
+              "*querdenk*", "*lügenpress*","*qanon*",
+              "*jebsen*", "andreas bircher", "aspirin*",
+              "*chlordioxid*", "*coach cecil*",  "gelähm*",
+              "*atemlähm*", "*betäub*", "* g5*",
+              "*biowaffe*", "*bill gates*", "*melinda gates*",
+              "*my secret terrius*", "*Tasuku Honjo*", "*hydroxychloroquin*",
+              "*azithromycin*", "*laborpandemie*", "*forschungslabor*",
+              "belarus*", "*weissrussland*", "*genmanipul*",
+              "hiv", "*vermisste kinder*")
+
+# creating dictionary for "corona-information pollution tweets"
+dict_ip <- dictionary((list(ip = kywrd_ip)))
+
+## applying dictonary on corpus..
+# ...this is done in two rounds
+
+# creating overview-list with all texts that matched keywords
+df_ip_texts01 <- corp01 %>%
+  kwic(., pattern = dict_ip, window = 0, valuetype = "glob") %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., docname, keyword, pattern) %>% 
+  `colnames<-`(c("text_id", "expr_ip", "dict"))
+
+# filtering-out obvious mismatches
+df_ip_texts02 <- df_ip_texts01 %>% 
+  filter(!str_detect(expr_ip,
+                     regex("@krebsliga|KrebsYves|marc_krebs|davidwkrebs|estherkrebs|/ g5",
+                           ignore_case = TRUE)))
+
+length(unique(df_ip_texts02$text_id))
+
+# printing texts that matched
+df_ip_texts02 %>% 
+  kable(., caption = "1st Round: Overview on Texts Containing Information Pollution on COVID-19",
+          row.names = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "responsive"), 
+  full_width = FALSE, position = "center") %>% 
+    scroll_box(., height = "800px")
+
+
+## ceating .csv vfor manual classification
+vct01 <- unique(df_ip_texts02$text_id)
+data01 <- data00 %>% 
+  dplyr::filter(., text_id %in% vct01) %>% 
+  dplyr::select(., text_id, text, screen_name, date, lastname, firstname)
+data01$IP_TYPE <- as.character("0")
+
+
+## saving and removing auxillary variables
+# saving results
+saveRDS(vct01, file = "./DataFrames/vct_ip_txt.rds")
+# dictionary ip tweets
+saveRDS(dict_ip, file = "./DataFrames/dict_ip.rds")
+# .csv file for manual classification
+write.csv2(data01, file = "./DataFrames/input_classifying.csv")
+
+# removing auxillary variables
+rm(list= ls(pattern= "data"))
+rm(list= ls(pattern= "test"))
+rm(list= ls(pattern= "df_"))
+rm(list= ls(pattern= "dict"))
+rm(list= ls(pattern= "corp"))
+rm(list= ls(pattern= "vct"))
+rm(list= ls(pattern= "kywrd"))
+
+```
+<br>
+
+##### 2.2 Identifying Information Pollution Within Corona-Tweets (manual input)
+
+```{r 02_02, include = TRUE, results = TRUE, eval = TRUE, message = FALSE, warning = FALSE}
+
+
+## Loading Data
+# Loading Clean data set
+data00 <- readRDS(file = "./DataFrames/df_tweets_clean_de.rds")
+# Loading manually classified corona-ip tweets
+data01 <- read.csv2(file = "./DataFrames/output_classifying.csv")
+
+## adding classification results to data set
+# creating vectors with text_id for "NO", "NTR", "SUP" and "OPP"
+vct_no <- data01 %>% 
+  dplyr::filter(., IP_TYPE %in% "NO") %>% 
+  dplyr::select(., text_id) %>% 
+  dplyr::pull(.) %>% 
+  as.integer(.)
+vct_ntr <- data01 %>% 
+  dplyr::filter(., IP_TYPE %in% "NTR") %>% 
+  dplyr::select(., text_id) %>% 
+  dplyr::pull(.) %>% 
+  as.integer(.)
+vct_sup <- data01 %>% 
+  dplyr::filter(., IP_TYPE %in% "SUP") %>% 
+  dplyr::select(., text_id) %>% 
+  dplyr::pull(.) %>% 
+  as.integer(.)
+vct_opp <- data01 %>% 
+  dplyr::filter(., IP_TYPE %in% "OPP") %>% 
+  dplyr::select(., text_id) %>% 
+  dplyr::pull(.) %>% 
+  as.integer(.)
+
+## getting numbers of corona-ip tweets
+length(vct_ntr) # neutral ip
+length(vct_opp) # opposing ip 
+length(vct_sup) # supporting ip
+
+# creating new variable in clean data set
+data00$ipind <- factor("NO", levels = c("NO", "NTR", "SUP", "OPP"))
+
+# assigning manually classified ip-tweets
+data00[data00$text_id %in% vct_ntr, "ipind"] <- "NTR"
+data00[data00$text_id %in% vct_sup, "ipind"] <- "SUP"
+data00[data00$text_id %in% vct_opp, "ipind"] <- "OPP"
+
+
+## saving and removing auxillary variables
+# data_set
+saveRDS(data00, file = "./DataFrames/df_tweets_clean_de_w_ipind.rds")
+# vectors with "ntr", "opp", "sup"
+saveRDS(vct_ntr, file = "./DataFrames/vct_ntr_txt.rds")
+saveRDS(vct_sup, file = "./DataFrames/vct_sup_txt.rds")
+saveRDS(vct_opp, file = "./DataFrames/vct_opp_txt.rds")
+# removing auxillary variables
+rm(list= ls(pattern= "data"))
+rm(list= ls(pattern= "test"))
+rm(list= ls(pattern= "df_"))
+rm(list= ls(pattern= "dict"))
+rm(list= ls(pattern= "corp"))
+rm(list= ls(pattern= "vct"))
+rm(list= ls(pattern= "kywrd"))
+
+```
+
+
+
+

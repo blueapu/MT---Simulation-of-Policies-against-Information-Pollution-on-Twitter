@@ -1,0 +1,2184 @@
+---
+title: "MT Code Result Analysis 09"
+author: "Markus Rottmann"
+date: "2021 05 23"
+output:
+  html_document:
+      toc: true
+      toc_depth: 5
+---
+
+****
+
+&nbsp;
+
+#### Description
+
+This Code is to analyze/build the results from the simulating each countermeasure (in NetLogo). It calculates descriptive statistics, renders plots, performs OLSs and performs hypothesis tests. 
+<br>
+
+The settings for the simulation runs are:
+
+  + 10 initial information pollution tweets.
+  + 7 days of tweet life-span (ip-tweet is not recognized as such after 7 days).
+  + 365 days of simulation.
+
+<br>
+  
+**Input**
+
+  + `network_sim_warn_02_04_noip10_lstwt7_365_01.csv`: Results of simulation runs for countermeasure _warning label_.
+  + `network_sim_susp_02_03_noip10_lstwt7_365_01.csv`: Results of simulation runs for countermeasure _account suspension_.
+  + `network_sim_ban_02_03_noip10_lstwt7_365_01.csv`: Results of simulation runs for countermeasure _account ban_.
+
+<br>
+  
+**Output**
+
+  + `ols_warn_noip10_lstwt07_365_real_02.html`: OLS results for real-life network for countermeasure _warning label_.
+  + `ols_warn_noip10_lstwt07_365_sim_02.html`: OLS results for artificial networks for countermeasure _warning label_.
+  + `plt_warn_noip10_lstwt07_real_allobs_01.png`: plot ip-tweets vs. countermeasure strength of real-life network for countermeasure _warning label_.
+  + `plt_warn_noip10_lstwt07_artif_365_01.png`: plot ip-tweets vs. countermeasure strength of artificial networks, only those simulation runs that reach 365 days for countermeasure _warning label_.
+  + `plt_warn_noip10_lstwt07_all_allobs_01.png`: plot ip-tweets vs. countermeasure strength of all networks and all runs for countermeasure _warning label_.
+  + `ols_susp_noip10_lstwt07_365_real_02.html`: OLS results for real-life network for countermeasure _account suspension_.
+  + `ols_susp_noip10_lstwt07_365_sim_02.html`: OLS results for artificial networks for countermeasure _account suspension_.
+  + `plt_susp_noip10_lstwt07_real_allobs_01.png`: plot ip-tweets vs. countermeasure strength of real-life network for countermeasure _account suspension_.
+  + `plt_susp_noip10_lstwt07_artif_365_01.png`: plot ip-tweets vs. countermeasure strength of artificial networks, only those simulation runs that reach 365 days for countermeasure _account suspension_.
+  + `plt_susp_noip10_lstwt07_all_allobs_01.png`: plot ip-tweets vs. countermeasure strength of all networks and all runs for countermeasure _account suspension_.
+  + `ols_ban_noip10_lstwt07_365_real_02.html`: OLS results for real-life network for countermeasure _account ban_.
+  + `ols_ban_noip10_lstwt07_365_sim_02.html`: OLS results for artificial networks for countermeasure _account ban_.
+  + `plt_ban_noip10_lstwt07_real_allobs_01.png`: plot ip-tweets vs. countermeasure strength of real-life network for countermeasure _account ban_.
+  + `plt_ban_noip10_lstwt07_artif_365_01.png`: plot ip-tweets vs. countermeasure strength of artificial networks, only those simulation runs that reach 365 days for countermeasure _account ban_.
+  + `plt_ban_noip10_lstwt07_all_allobs_01.png`: plot ip-tweets vs. countermeasure strength of all networks and all runs for countermeasure _account ban_.
+
+
+
+
+```{r setup, include = TRUE, results = FALSE, warning = FALSE, message = FALSE}
+
+## clearing memory
+rm(list=ls(all=T))
+
+## loading (and installing) packages
+# defining required packages
+req_packages <- c("dplyr", "knitr", "kableExtra", "rvest", "igraph",
+"ggplot2", "tibble", "quanteda", "stargazer", "tidyr", "stringr", "lme4",
+"rtweet", "lubridate", "MASS", "dplyr", "lsmeans")
+
+# checking, if already installed
+new_packages <- req_packages[!(req_packages %in% installed.packages()[,"Package"])]
+
+# installing (downloading) missing packages
+if(length(new_packages) > 0) {
+  install.packages(new_packages)
+} 
+
+# loading required packages
+lapply(req_packages, library, character.only = TRUE) 
+
+# deleting auxillary variables
+rm(req_packages, new_packages)
+
+## setting global options
+options(repos = "https://cran.rstudio.com")
+options(stringsAsFactors = FALSE)
+knitr::opts_chunk$set(echo = TRUE, fig.width = 7, fig.height = 5)
+
+
+# frequenty needed packages: ("dplyr", "knitr", "kableExtra", "rvest", "igraph",
+# "pageviews", "WikipediR", "ggplot2", "tibble", "quanteda", "stargazer", "tidyr",
+# "stringr", "lme4", "rtweet", "lubridate")
+
+
+```
+
+
+&nbsp;
+
+***
+
+#### 1. Contermeasure "Warning"
+
+16 x ~20 Runs are performed. Settings for these simulation runs are:
+
+  + Real-life network with 858 members, average node density = 30
+    - Run 1: 0% lowering of probability to post an IP Tweet.
+    - Run 2: 25% lowering of probability to post an IP Tweet.
+    - Run 3: 50% lowering of probability to post an IP Tweet.
+    - Run 4: 75% lowering of probability to post an IP Tweet.
+
+  + Simulated Network with 858 members, average node density = 15
+    - Run 1: 0% lowering of probability to post an IP Tweet.
+    - Run 2: 25% lowering of probability to post an IP Tweet.
+    - Run 3: 50% lowering of probability to post an IP Tweet.
+    - Run 4: 75% lowering of probability to post an IP Tweet.
+
+  + Simulated Network with 858 members, average node density = 30
+    - Run 1: 0% lowering of probability to post an IP Tweet.
+    - Run 2: 25% lowering of probability to post an IP Tweet.
+    - Run 3: 50% lowering of probability to post an IP Tweet.
+    - Run 4: 75% lowering of probability to post an IP Tweet.
+
+  + Simulated Network with 858 members, average node density = 45
+    - Run 1: 0% lowering of probability to post an IP Tweet.
+    - Run 2: 25% lowering of probability to post an IP Tweet.
+    - Run 3: 50% lowering of probability to post an IP Tweet.
+    - Run 4: 75% lowering of probability to post an IP Tweet.
+
+<br>
+    
+##### 1.1 Data Preparation
+
+```{r 01_01 warning_dataprep, include = TRUE, results = TRUE, eval = TRUE, message = FALSE, warning = FALSE}
+
+
+#### Loading Data & Preparing data
+data00 <- read.csv2(file = "./RawData/network_sim_warn_02_04_noip10_lstwt7_365_01.csv") %>%
+  `colnames<-`(c("p_warn", "dens", "descr", "val"))
+
+## Brining data in wide format, adding ticks and turtles to same observation ---------------
+# getting number of rows
+n_row <- nrow(data00) # number of rows
+# making vector with run-ids (3 values per run)
+vct00 <- rep(x = (1:(n_row/3)) , times = 3) %>% 
+  as.numeric(.) %>% 
+  sort(.)
+# attaching vector to data00 and spread (from long to wide format)
+data01 <- data00 %>% 
+  cbind(., run_id = vct00) %>% 
+  spread(., key = c("descr"), value = "val") %>% 
+  dplyr::select(., run_id, p_warn, dens, sum_newip, sum_trltls, ticks)
+# saving wide format observations
+data01 %>% 
+   saveRDS(., file = "./RawData/nw_sim_warn_noip10_ls7_356_wide_01.RDS")
+
+## First Plot of Results "Warning"
+# with all observations (including those stopping before 365 days)
+data02 <- data01 %>%
+          group_by(p_warn, dens) %>% 
+          summarize(mn_newip = mean(sum_newip), sd_newip = sd(sum_newip))
+# only observatons that ran to 365 days
+data03 <- data01 %>%
+          filter(., ticks == 365) %>% 
+          group_by(p_warn, dens) %>% 
+          summarize(mn_newip = mean(sum_newip), sd_newip = sd(sum_newip))
+
+```
+<br>
+
+##### 1.2 Descriptive and OLS
+
+```{r 01_02 warning_OLS, include = TRUE, results = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
+
+#### calculating Descriptive -------------------------------------------------------------------
+## Numbers of ticks for all rounds
+# calculating
+res_d00 <- data01 %>% 
+  group_by(., p_warn, dens) %>% 
+  summarize(mean = mean(ticks))
+# showing
+res_d00
+
+#### performing OLS -------------------------------------------------------------------
+
+## for network density "real" ----------
+# all observations
+res01a <- data01 %>% 
+         filter(., dens %in% "real") %>% 
+         lm(data = ., formula = sum_newip ~ p_warn)
+summary(res01a)
+
+# observations that ran for 365 days
+res01b <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "real") %>% 
+         lm(data = ., formula = sum_newip ~ p_warn)
+summary(res01b)
+
+# observations that ran for 365 days & between point 0 & 1
+res01b_0_1 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "real") %>%
+         filter(., p_warn == 0 | p_warn == 25) %>% 
+         lm(data = ., formula = sum_newip ~ p_warn)
+summary(res01b_0_1)
+
+# observations that ran for 365 days & between point 1 & 2
+res01b_1_2 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "real") %>%
+         filter(., p_warn == 25 | p_warn == 50) %>% 
+         lm(data = ., formula = sum_newip ~ p_warn)
+summary(res01b_1_2)
+
+# # observations that ran for 365 days & between point 0 & 2
+res01b_0_2 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "real") %>% 
+         filter(., p_warn == 0 | p_warn == 25 | p_warn == 50) %>% 
+         lm(data = ., formula = sum_newip ~ p_warn)
+summary(res01b_0_2)
+
+
+## for network density "sim_15" ----------
+# all observations
+res02a <- data01 %>% 
+         filter(., dens %in% "sim_15") %>% 
+         lm(data = ., formula = sum_newip ~ p_warn)
+summary(res02a)
+
+# observations that ran for 365 days
+res02b <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_15") %>% 
+         lm(data = ., formula = sum_newip ~ p_warn)
+summary(res02b)
+
+# observations that ran for 365 days & between point 0 & 1
+res02b_0_1 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_15") %>%
+         filter(., p_warn == 0 | p_warn == 25) %>% 
+         lm(data = ., formula = sum_newip ~ p_warn)
+summary(res02b_0_1)
+
+
+## for network density "sim_30" ----------
+# all observations
+res03a <- data01 %>% 
+         filter(., dens %in% "sim_30") %>% 
+         lm(data = ., formula = sum_newip ~ p_warn)
+summary(res03a)
+
+# observations that ran for 365 days
+res03b <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_30") %>% 
+         lm(data = ., formula = sum_newip ~ p_warn)
+summary(res03b)
+
+# observations that ran for 365 days & between point 0 & 1
+res03b_0_1 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_30") %>%
+         filter(., p_warn == 0 | p_warn == 25) %>% 
+         lm(data = ., formula = sum_newip ~ p_warn)
+summary(res03b_0_1)
+
+# observations that ran for 365 days & between point 1 & 2
+res03b_1_2 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_30") %>%
+         filter(., p_warn == 25 | p_warn == 50) %>% 
+         lm(data = ., formula = sum_newip ~ p_warn)
+summary(res03b_1_2)
+
+# # observations that ran for 365 days & between point 0 & 2
+res03b_0_2 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_30") %>% 
+         filter(., p_warn == 0 | p_warn == 25 | p_warn == 50) %>% 
+         lm(data = ., formula = sum_newip ~ p_warn)
+summary(res03b_0_2)
+
+## for network density "sim_45" ----------
+# all observations
+res04a <- data01 %>% 
+         filter(., dens %in% "sim_45") %>% 
+         lm(data = ., formula = sum_newip ~ p_warn)
+summary(res04a)
+
+# observations that ran for 365 days
+res04b <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_45") %>% 
+         lm(data = ., formula = sum_newip ~ p_warn)
+summary(res04b)
+
+# observations that ran for 365 days & between point 0 & 1
+res04b_0_1 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_45") %>%
+         filter(., p_warn == 0 | p_warn == 25) %>% 
+         lm(data = ., formula = sum_newip ~ p_warn)
+summary(res04b_0_1)
+
+# observations that ran for 365 days & between point 1 & 2
+res04b_1_2 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_45") %>%
+         filter(., p_warn == 25 | p_warn == 50) %>% 
+         lm(data = ., formula = sum_newip ~ p_warn)
+summary(res04b_1_2)
+
+# observations that ran for 365 days & between point 0 & 2
+res04b_0_2 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_45") %>% 
+         filter(., p_warn == 0 | p_warn == 25 | p_warn == 50) %>% 
+         lm(data = ., formula = sum_newip ~ p_warn)
+summary(res04b_0_2)
+
+
+#### saving results
+## "real", observations that ran 365 days
+# defining column labels
+col_lab = c("0% up to 25%", "25% up to 50%", "0% up to 50%")
+# rendering and saving regression table
+stargazer(res01b_0_1, res01b_1_2, res01b_0_2,
+         column.labels = col_lab,
+         title = "Countermeasure Warning",
+         style = "apsr",
+         digits = 2,
+         type = "html",
+         out = "./PlotsTables/ols_warn_noip10_lstwt07_365_real_02.html")
+
+## All models, observations that ran 365 days
+# defining column labels
+col_lab = c("Sim 15: 0-25", 
+            "Sim 30: 0-25", "Sim 30: 25-50", "Sim 30: 0 - 50",
+            "Sim 45: 0-25", "Sim 45: 25-50", "Sim 45: 0 - 50",
+            "Real: 0-25", "Real: 25-50", "Real: 0 - 50")
+# rendering and saving regression table
+stargazer(res02b_0_1, 
+         res03b_0_1, res03b_1_2, res03b_0_2,
+         res04b_0_1, res04b_1_2, res04b_0_2,
+         res01b_0_1, res01b_1_2, res01b_0_2,
+         column.labels = col_lab,
+         title = "Countermeasure Warning",
+         style = "apsr",
+         digits = 2,
+         type = "html",
+         out = "./PlotsTables/ols_warn_noip10_lstwt07_365_sim_02.html")
+
+##### Calculating Descritpive Stuff ----------------------------------------------
+
+# Getting Summaries
+res05 <- data01 %>% 
+         filter(., dens %in% "sim_30") %>% 
+         filter(., p_warn == 50) %>% 
+         dplyr::select(., ticks) %>% 
+         summary(.)
+# res05
+
+# Getting Number Runs wrt. reaching 365 days
+res06 <- data01 %>% 
+         filter(., dens %in% "sim_15") %>% 
+         filter(., p_warn == 25) %>% 
+         dplyr::select(., ticks) %>% 
+         arrange(desc(ticks))
+# res06
+
+
+####### Doing Hypotheses Tests for [H2a] ----------------------------------------------
+
+#### For Real-World Network
+# for portion 0% to 25%
+int_res01b_0_1 <- res01b_0_1 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res01b_0_1 <-  int_res01b_0_1[2, "Estimate"]
+se_res01b_0_1 <- int_res01b_0_1[2, "Std. Error"]
+
+# for portion 25% to 50%
+int_res01b_1_2 <- res01b_1_2 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res01b_1_2 <-  int_res01b_1_2[2, "Estimate"]
+se_res01b_1_2 <- int_res01b_1_2[2, "Std. Error"]
+
+# calculation Z-Value & getting p-value
+z_res01b_0_2 <- (b_res01b_1_2 - b_res01b_0_1)/sqrt( (se_res01b_0_1)^2 + (se_res01b_1_2)^2 ) 
+p_res01b_0_2 <- pnorm(q = z_res01b_0_2, lower.tail = TRUE)
+p_res01b_0_2 
+
+#### For for network density "sim_15" 
+# for portion 0% to 25%
+int_res02b_0_1 <- res02b_0_1 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res02b_0_1 <-  int_res02b_0_1[2, "Estimate"]
+se_res02b_0_1 <- int_res02b_0_1[2, "Std. Error"]
+
+
+#### For for network density "sim_30" 
+# for portion 0% to 25%
+int_res03b_0_1 <- res03b_0_1 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res03b_0_1 <-  int_res03b_0_1[2, "Estimate"]
+se_res03b_0_1 <- int_res03b_0_1[2, "Std. Error"]
+
+# for portion 25% to 50%
+int_res03b_1_2 <- res03b_1_2 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res03b_1_2 <-  int_res03b_1_2[2, "Estimate"]
+se_res03b_1_2 <- int_res03b_1_2[2, "Std. Error"]
+
+# calculation Z-Value & getting p-value
+z_res03b_0_2 <- (b_res03b_1_2 - b_res03b_0_1)/sqrt( (se_res03b_0_1)^2 + (se_res03b_1_2)^2 ) 
+p_res03b_0_2 <- pnorm(q = z_res03b_0_2, lower.tail = TRUE)
+p_res03b_0_2 
+
+
+#### For for network density "sim_45" 
+# for portion 0% to 25%
+int_res04b_0_1 <- res04b_0_1 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res04b_0_1 <-  int_res04b_0_1[2, "Estimate"]
+se_res04b_0_1 <- int_res04b_0_1[2, "Std. Error"]
+
+# for portion 25% to 50%
+int_res04b_1_2 <- res04b_1_2 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res04b_1_2 <-  int_res04b_1_2[2, "Estimate"]
+se_res04b_1_2 <- int_res04b_1_2[2, "Std. Error"]
+
+# calculation Z-Value & getting p-value
+z_res04b_0_2 <- (b_res04b_1_2 - b_res04b_0_1)/sqrt( (se_res04b_0_1)^2 + (se_res04b_1_2)^2 ) 
+p_res04b_0_2 <- pnorm(q = z_res04b_0_2, lower.tail = TRUE)
+p_res04b_0_2 
+
+
+## preparing and displaying result data frame
+# preparing result data frame
+h_test00 <- data.frame(Network = c("Real-World: Diff. Effect",
+                                 "Real-World: p-Value",
+                                 
+                                 "Art. 15: Diff. Effect",
+                                 "Art. 15: p-Value",
+                                 
+                                 "Art. 30: Diff. Effect",
+                                 "Art. 30: p-Value",
+                                 
+                                 "Art. 45: Diff. Effect",
+                                 "Art. 45: p-Value"),
+                     
+                     "0% - 25% vs. 25% - 50%" = c((b_res01b_1_2 - b_res01b_0_1), # real-world
+                                                p_res01b_0_2,
+                                                
+                                                NA,                              # artificial 15
+                                                NA,
+                                                
+                                                (b_res03b_1_2 - b_res03b_0_1),   # artificial 30
+                                                p_res03b_0_2,
+                                                  
+                                                (b_res04b_1_2 - b_res04b_0_1),   # artificial 45
+                                                p_res04b_0_2),
+                     
+                     
+                     "25% - 50% vs. 50% - 75%" = c(NA, # real-world
+                                                 NA,
+                     
+                                                 NA,   # artificial 15
+                                                 NA,
+                                                 
+                                                 NA,   # artificial 30
+                                                 NA,  
+                                                 
+                                                 NA,   # artificial 45
+                                                 NA)
+              ) %>% 
+  `colnames<-`(c("Network", "0% - 25% vs. 25% - 50%", "25% - 50% vs. 50% - 75%")) 
+
+
+# displaying hypothesis test table
+h_test00%>% kable(.)
+
+
+
+####### Doing Hypotheses Tests for [H3] ----------------------------------------------
+## NOTE: I take advantage that coeficients and standard errors are already defined
+
+## Art. 15 vs. Art. 30
+# Portion 0% to 25%
+z_res0203_0_1 <- (b_res02b_0_1 - b_res03b_0_1)/sqrt( (se_res02b_0_1)^2 + (se_res03b_0_1)^2 ) 
+p_res0203_0_1 <- pnorm(q = z_res0203_0_1, lower.tail = TRUE)
+p_res0203_0_1
+
+# Portion 25% to 50%
+# NA
+
+# Portion 50% to 75%
+# NA
+
+
+## Art. 30 vs. Art. 45
+# Portion 0% to 25%
+z_res0304_0_1 <- (b_res03b_0_1 - b_res04b_0_1)/sqrt( (se_res03b_0_1)^2 + (se_res04b_0_1)^2 ) 
+p_res0304_0_1 <- pnorm(q = z_res0304_0_1, lower.tail = TRUE)
+p_res0304_0_1
+
+# Portion 25% to 50%
+z_res0304_1_2 <- (b_res03b_1_2 - b_res04b_1_2)/sqrt( (se_res03b_1_2)^2 + (se_res04b_1_2)^2 ) 
+p_res0304_1_2 <- pnorm(q = z_res0304_1_2, lower.tail = TRUE)
+p_res0304_1_2
+
+# Portion 50% to 75%
+# NA
+
+
+## Producing and Displaying Table of Results
+# preparing data frame
+h_test01 <- data.frame(Network = c("0% - 25%: Diff. Effect",
+                                   "0% - 25%: p-Value",
+
+                                   "25% - 50%: Diff. Effect",
+                                   "25% - 50%: p-Value",
+
+                                   "50% - 75%: Diff. Effect",
+                                   "50% - 75%: p-Value"),
+
+                     "Art. 15 vs. Art. 30" = c((b_res03b_0_1 - b_res02b_0_1), 
+                                                p_res0203_0_1,
+
+                                                NA,                          
+                                                NA,
+                                               
+                                                NA,
+                                                NA),
+
+
+                     "Art. 20 vs. Art. 45"     = c((b_res04b_0_1 - b_res03b_0_1),
+                                                 p_res0304_0_1,
+
+                                                 c((b_res04b_1_2 - b_res03b_1_2),  
+                                                 p_res0304_1_2,
+
+                                                 NA,  
+                                                 NA))) %>%
+  
+`colnames<-`(c("Network", "Art. 15 vs. Art. 30", "Art. 20 vs. Art. 45"))
+
+# displaying data frame
+h_test01%>% kable(.)
+
+```
+<br>
+
+##### 1.3 Plots
+
+```{r 01_03 warning_Plots, include = TRUE, results = TRUE, eval = TRUE, message = FALSE, warning = FALSE}
+
+
+#### creating plots -----------------------------------------------------------------
+
+## "Real-Life" Network Only (365 and All) ---------------
+# Preparing Data
+data04 <- data02 %>% 
+  filter(., dens %in% "real") %>% 
+  filter(., p_warn >= 50) %>% 
+  mutate(., dat_bas = "all")
+data05 <- data03 %>% 
+  filter(., dens %in% "real") %>% 
+  mutate(., dat_bas = "365_oly")
+data06 <- data04 %>% 
+  rbind(., data05)
+
+## rendering, showing and saving plot
+# rendering
+gg01 <- data06 %>%
+        ggplot( aes(x = p_warn, 
+                    group = dat_bas,
+                    color = dat_bas) ) +
+  
+        geom_line(aes(y = mn_newip ),
+                  size = 1.0) +
+  
+        geom_errorbar(aes(ymin = mn_newip - sd_newip,
+                      ymax = mn_newip + sd_newip),
+                      colour = "black",
+                      width = 2.0,
+                      size = 0.5) +
+  
+        geom_point(aes(y = mn_newip),
+                   size = 1.5) +
+
+        scale_y_continuous(name ="Information Pollution Tweets [--]",
+                           limits = c(-50, 3550)) +
+  
+        scale_x_continuous(name = "Probability Lowered [%]",
+                           breaks = c(0, 25, 50, 75),
+                           limits = c(-1, 76)) +
+
+        scale_color_grey(name = "Runs:",
+                         labels = c("365 days", "Less than\n365 days")) +
+
+        theme_bw()
+
+# saving
+gg01 %>% 
+  ggsave(., filename = "./PlotsTables/plt_warn_noip10_lstwt07_real_allobs_01.png",
+      units = "cm",
+      dpi = "retina",
+      height = 8,
+      width = 14)
+
+
+#### "Artificial Network" 365 days Only ---------------------------------------
+# rendering
+gg02 <- data03 %>%
+  
+        filter(., dens %in% c("sim_15", "sim_30", "sim_45")) %>%  
+  
+        ggplot( aes(x = p_warn,
+                    group = dens,
+                    color = dens) ) +
+  
+        geom_line(aes(y = mn_newip ),
+                      size = 1.0) +
+  
+        geom_errorbar(aes(ymin = mn_newip - sd_newip,
+                          ymax = mn_newip + sd_newip),
+                          colour = "black",
+                          width = 2.0,
+                          size = 0.5) +
+  
+        geom_point(aes(y = mn_newip),
+                       size = 1.5) +
+
+        scale_y_continuous(name ="Information Pollution Tweets [--]",
+                           limits = c(-50, 5100)) +
+
+        scale_x_continuous(name = "Probability Lowered [%]",
+                           breaks = c(0, 25, 50, 75),
+                           limits = c(-1, 76)) +
+  
+        scale_color_grey(name = "Density:",
+                         labels = c("15 links", "30 links", "45 links")) +
+
+        theme_bw()
+
+# showing plot
+gg02
+# saving plot
+gg02 %>% 
+  ggsave(., filename = "./PlotsTables/plt_warn_noip10_lstwt07_artif_365_01.png",
+      units = "cm",
+      dpi = "retina",
+      height = 8,
+      width = 14)
+
+
+#### Real and Artificial Networks, All Observations ---------------------------------------
+# rendering
+gg03 <- data02 %>%
+  
+        ggplot( aes(x = p_warn,
+                    group = dens,
+                    color = dens) ) +
+  
+        geom_line(aes(y = mn_newip ),
+                      size = 1.0) +
+  
+        geom_errorbar(aes(ymin = mn_newip - sd_newip,
+                          ymax = mn_newip + sd_newip),
+                          colour = "black",
+                          width = 1.75,
+                          size = 0.5) +
+  
+        geom_point(aes(y = mn_newip),
+                       size = 1.5) +
+
+        scale_y_continuous(name ="Information Pollution Tweets [--]",
+                           limits = c(-50, 5100)) +
+
+        scale_x_continuous(name = "Probability Lowered [%]",
+                           breaks = c(0, 25, 50, 75),
+                           limits = c(-1, 76)) +
+  
+        scale_color_grey(name = "Network:",
+                         labels = c("Real 30", "Artif. 15", "Artif. 30", "Artif. 45")) +
+
+        theme_bw()
+
+# showing plot
+gg03
+
+# saving plot
+gg03 %>% 
+  ggsave(., filename = "./PlotsTables/plt_warn_noip10_lstwt07_all_allobs_01.png",
+      units = "cm",
+      dpi = "retina",
+      height = 8,
+      width = 14)
+
+#### Cleanup --------------------------------------------------------------------------------------
+## removing auxillary variables
+rm(col_lab, n_row)
+rm(list = ls(pattern = "data"))
+rm(list = ls(pattern = "int_"))
+rm(list = ls(pattern = "vct"))
+rm(list = ls(pattern = "res"))
+rm(list = ls(pattern = "gg"))
+
+
+```
+
+
+&nbsp;
+
+***
+
+#### 2. Contermeasure "Account Suspension"
+
+16 x ~20 Runs are performed. Settings for these simulation runs are:
+
+  + Real-life Network with 858 members, average node density = 30
+    - Run 1: suspending the account for 0 days.
+    - Run 2: suspending the account for 2 days (IP-tweet remains invisible).
+    - Run 3: suspending the account for 4 days (IP-tweet remains invisible).
+    - Run 4: suspending the account for 6 days (IP-tweet remains invisible).
+ 
+  + Simulated Network with 858 members, average node density = 15
+    - Run 1: suspending the account for 0 days.
+    - Run 2: suspending the account for 2 days (IP-tweet remains invisible).
+    - Run 3: suspending the account for 4 days (IP-tweet remains invisible).
+    - Run 4: suspending the account for 6 days (IP-tweet remains invisible).
+    
+  + Simulated Network with 858 members, average node density = 30
+    - Run 1: suspending the account for 0 days.
+    - Run 2: suspending the account for 2 days (IP-tweet remains invisible).
+    - Run 3: suspending the account for 4 days (IP-tweet remains invisible).
+    - Run 4: suspending the account for 6 days (IP-tweet remains invisible).
+    
+  + Simulated Network with 858 members, average node density = 45
+    - Run 1: suspending the account for 0 days.
+    - Run 2: suspending the account for 2 days (IP-tweet remains invisible).
+    - Run 3: suspending the account for 4 days (IP-tweet remains invisible).
+    - Run 4: suspending the account for 6 days (IP-tweet remains invisible).
+
+<br>
+
+
+##### 2.1 Data Preparation
+
+```{r 02_01 suspension_dataprep, include = TRUE, results = TRUE, eval = TRUE, message = FALSE, warning = FALSE}
+
+## Loading Data
+data00 <- read.csv2(file = "./RawData/network_sim_susp_02_03_noip10_lstwt7_365_01.csv") %>%
+  `colnames<-`(c("no_sus", "dens", "descr", "val"))
+
+
+## Brining data in wide format, adding ticks and turtles to same observation
+# getting number of rows
+n_row <- nrow(data00) # number of rows
+# making vector with run-ids (3 values per run)
+vct00 <- rep(x = (1:(n_row/3)) , times = 3) %>% 
+  as.numeric(.) %>% 
+  sort(.)
+# attaching vector to data00 and spread (from long to wide format)
+data01 <- data00 %>% 
+  cbind(., run_id = vct00) %>% 
+  spread(., key = c("descr"), value = "val") %>% 
+  dplyr::select(., run_id, no_sus, dens, sum_newip, sum_trltls, ticks)
+# saving wide format observations
+data01 %>% 
+   saveRDS(., file = "./RawData/nw_sim_sus_noip10_ls7_356_wide_01.RDS")
+
+## First Plot of Results "Warning"
+# with all observations (including those stopping before 365 days)
+data02 <- data01 %>%
+          group_by(no_sus, dens) %>% 
+          summarize(mn_newip = mean(sum_newip), sd_newip = sd(sum_newip))
+
+# only observatons that ran to 365 days
+data03 <- data01 %>%
+          filter(., ticks == 365) %>% 
+          group_by(no_sus, dens) %>% 
+          summarize(mn_newip = mean(sum_newip), sd_newip = sd(sum_newip))
+``` 
+<br>
+
+
+##### 2.2 Descriptive and OLS
+
+```{r 02_02 suspension_OLS, include = TRUE, results = TRUE, eval = TRUE, message = FALSE, warning = FALSE}
+
+
+#### calculating Descriptive -------------------------------------------------------------------
+
+## Numbers of ticks for all rounds
+# calculating
+res_d00 <- data01 %>% 
+  group_by(., no_sus, dens) %>% 
+  summarize(mean = mean(ticks))
+# showing
+res_d00
+
+
+#### performing OLS ----------------------------------------------
+
+## for network density "real" ----------
+# all observations
+res01a <- data01 %>% 
+         filter(., dens %in% "real") %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res01a)
+
+# observations that ran for 365 days
+res01b <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "real") %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res01b)
+
+# observations that ran for 365 days & between point 0 & 1
+res01b_0_1 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "real") %>%
+         filter(., no_sus == 0 | no_sus == 2) %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res01b_0_1)
+
+# observations that ran for 365 days & between point 1 & 2
+res01b_1_2 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "real") %>%
+         filter(., no_sus == 2 | no_sus == 4) %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res01b_1_2)
+
+# observations that ran for 365 days & between point 2 & 3
+res01b_2_3 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "real") %>%
+         filter(., no_sus == 4 | no_sus == 6) %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res01b_2_3)
+
+# # observations that ran for 365 days & between point 0 & 2
+res01b_0_3 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "real") %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res01b_0_3)
+
+
+## for network density "sim_15" ----------
+# all observations
+res02a <- data01 %>% 
+         filter(., dens %in% "sim_15") %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res02a)
+
+# observations that ran for 365 days
+res02b <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_15") %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res02b)
+
+# observations that ran for 365 days & between point 0 & 1
+res02b_0_1 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_15") %>%
+         filter(., no_sus == 0 | no_sus == 2) %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res02b_0_1)
+
+
+## for network density "sim_30" ----------
+# all observations
+res03a <- data01 %>% 
+         filter(., dens %in% "sim_30") %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res03a)
+
+# observations that ran for 365 days
+res03b <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_30") %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res03b)
+
+# observations that ran for 365 days & between point 0 & 1
+res03b_0_1 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_30") %>%
+         filter(., no_sus == 0 | no_sus == 2) %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res03b_0_1)
+
+# observations that ran for 365 days & between point 1 & 2
+res03b_1_2 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_30") %>%
+         filter(., no_sus == 2 | no_sus == 4) %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res03b_1_2)
+
+# # observations that ran for 365 days & between point 0 & 2
+res03b_0_2 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_30") %>% 
+         filter(., no_sus == 0 | no_sus == 2 | no_sus == 4) %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res03b_0_2)
+
+## for network density "sim_45" ----------
+# all observations
+res04a <- data01 %>% 
+         filter(., dens %in% "sim_45") %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res04a)
+
+# observations that ran for 365 days
+res04b <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_45") %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res04b)
+
+# observations that ran for 365 days & between point 0 & 1
+res04b_0_1 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_45") %>%
+         filter(., no_sus == 0 | no_sus == 2) %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res04b_0_1)
+
+# observations that ran for 365 days & between point 1 & 2
+res04b_1_2 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_45") %>%
+         filter(., no_sus == 2 | no_sus == 4) %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res04b_1_2)
+
+# observations that ran for 365 days & between point 2 & 3
+res04b_2_3 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_45") %>%
+         filter(., no_sus == 4 | no_sus == 6) %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res04b_2_3)
+
+# observations that ran for 365 days & between point 0 & 2
+res04b_0_3 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_45") %>% 
+         lm(data = ., formula = sum_newip ~ no_sus)
+summary(res04b_0_3)
+
+
+#### saving results
+## "real", observations that ran 365 days
+# defining column labels
+col_lab = c("0 to 2 days", "2 to 4 days",
+            "4 to 6 days", "0 to 6 days")
+# rendering and saving regression table
+stargazer(res01b_0_1, res01b_1_2,
+          res01b_2_3, res01b_0_3,
+         column.labels = col_lab,
+         title = "Countermeasure Account Suspension",
+         style = "apsr",
+         digits = 2,
+         type = "html",
+         out = "./PlotsTables/ols_susp_noip10_lstwt07_365_real_02.html")
+
+## All models, observations that ran 365 days
+# defining column labels
+col_lab = c("Sim 15: 0-2", 
+            "Sim 30: 0-2", "Sim 30: 2-4", "Sim 30: 0-4",
+            "Sim 45: 0-2", "Sim 45: 2-4", "Sim 45: 4-6", "Sim 45: 0-6",
+            "Real: 0-2", "Real: 2-4", "Real: 4-6", "Real: 0-6")
+# rendering and saving regression table
+stargazer(res02b_0_1, 
+          res03b_0_1, res03b_1_2, res03b_0_2,
+          res04b_0_1, res04b_1_2, res04b_2_3, res04b_0_3,
+          res01b_0_1, res01b_1_2, res01b_2_3, res01b_0_3,
+          column.labels = col_lab,
+          title = "Countermeasure Account Suspension",
+          style = "apsr",
+          digits = 2,
+          type = "html",
+          out = "./PlotsTables/ols_susp_noip10_lstwt07_365_sim_02.html")
+
+# getting Summaries (various)
+res05 <- data01 %>% 
+         filter(., dens %in% "sim_30") %>% 
+         filter(., no_sus == 4) %>% 
+         dplyr::select(., ticks) %>% 
+         summary(.)
+res05
+
+# getting Survivors (various)
+res06 <- data01 %>% 
+         filter(., dens %in% "sim_45") %>% 
+         filter(., no_sus == 6) %>% 
+         arrange(desc(ticks))
+res06
+
+
+####### Doing Hypotheses Tests for [H2b] ----------------------------------------------
+
+#### For Real-World Network
+# for portion 0 days to 2 days
+int_res01b_0_1 <- res01b_0_1 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res01b_0_1 <-  int_res01b_0_1[2, "Estimate"]
+se_res01b_0_1 <- int_res01b_0_1[2, "Std. Error"]
+
+# for portion 2 days to 4 days
+int_res01b_1_2 <- res01b_1_2 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res01b_1_2 <-  int_res01b_1_2[2, "Estimate"]
+se_res01b_1_2 <- int_res01b_1_2[2, "Std. Error"]
+
+# for portion 4 days to 6 days
+int_res01b_2_3 <- res01b_2_3 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res01b_2_3 <-  int_res01b_2_3[2, "Estimate"]
+se_res01b_2_3 <- int_res01b_2_3[2, "Std. Error"]
+
+# calculation Z-Value & getting p-value
+# portion 0 to 4 days
+z_res01b_0_2 <- (b_res01b_1_2 - b_res01b_0_1)/sqrt( (se_res01b_1_2)^2 + (se_res01b_0_1)^2 ) 
+p_res01b_0_2 <- pnorm(q = z_res01b_0_2, lower.tail = TRUE)
+p_res01b_0_2 
+
+# portion 2 to 6 days
+z_res01b_1_3 <- (b_res01b_2_3 - b_res01b_1_2)/sqrt( (se_res01b_2_3)^2 + (se_res01b_1_2)^2 ) 
+p_res01b_1_3 <- pnorm(q = z_res01b_1_3, lower.tail = TRUE)
+p_res01b_1_3 
+
+
+#### For for network density "sim_15" 
+# for portion 0 days to 2 days
+int_res02b_0_1 <- res02b_0_1 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res02b_0_1 <-  int_res02b_0_1[2, "Estimate"]
+se_res02b_0_1 <- int_res02b_0_1[2, "Std. Error"]
+
+
+
+#### For for network density "sim_30" 
+# for portion 0 days to 2 days
+int_res03b_0_1 <- res03b_0_1 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res03b_0_1 <-  int_res03b_0_1[2, "Estimate"]
+se_res03b_0_1 <- int_res03b_0_1[2, "Std. Error"]
+
+# for portion 2 days to 4 days
+int_res03b_1_2 <- res03b_1_2 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res03b_1_2 <-  int_res03b_1_2[2, "Estimate"]
+se_res03b_1_2 <- int_res03b_1_2[2, "Std. Error"]
+
+# calculation Z-Value & getting p-value
+z_res03b_0_2 <- (b_res03b_1_2 - b_res03b_0_1)/sqrt( (se_res03b_0_1)^2 + (se_res03b_1_2)^2 ) 
+p_res03b_0_2 <- pnorm(q = z_res03b_0_2, lower.tail = TRUE)
+p_res03b_0_2 
+
+
+#### For for network density "sim_45" 
+### For Real-World Network
+# for portion 0 days to 2 days
+int_res04b_0_1 <- res04b_0_1 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res04b_0_1 <-  int_res04b_0_1[2, "Estimate"]
+se_res04b_0_1 <- int_res04b_0_1[2, "Std. Error"]
+
+# for portion 2 days to 4 days
+int_res04b_1_2 <- res04b_1_2 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res04b_1_2 <-  int_res04b_1_2[2, "Estimate"]
+se_res04b_1_2 <- int_res04b_1_2[2, "Std. Error"]
+
+# for portion 4 days to 6 days
+int_res04b_2_3 <- res04b_2_3 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res04b_2_3 <-  int_res04b_2_3[2, "Estimate"]
+se_res04b_2_3 <- int_res04b_2_3[2, "Std. Error"]
+
+# calculation Z-Value & getting p-value
+# portion 0 to 4 days
+z_res04b_0_2 <- (b_res04b_1_2 - b_res04b_0_1)/sqrt( (se_res04b_1_2)^2 + (se_res04b_0_1)^2 ) 
+p_res04b_0_2 <- pnorm(q = z_res04b_0_2, lower.tail = TRUE)
+p_res04b_0_2 
+
+# portion 2 to 6 days
+z_res04b_1_3 <- (b_res04b_2_3 - b_res04b_1_2)/sqrt( (se_res04b_2_3)^2 + (se_res04b_1_2)^2 ) 
+p_res04b_1_3 <- pnorm(q = z_res04b_1_3, lower.tail = TRUE)
+p_res04b_1_3 
+
+
+## preparing and displaying result data frame
+# preparing result data frame
+h_test00 <- data.frame(Network = c("Real-World: Diff. Effect",
+                                 "Real-World: p-Value",
+                                 
+                                 "Art. 15: Diff. Effect",
+                                 "Art. 15: p-Value",
+                                 
+                                 "Art. 30: Diff. Effect",
+                                 "Art. 30: p-Value",
+                                 
+                                 "Art. 45: Diff. Effect",
+                                 "Art. 45: p-Value"),
+                     
+                     "0 days - 2 days vs. 2 days - 4 days" = c((b_res01b_1_2 - b_res01b_0_1), # real-world
+                                                p_res01b_0_2,
+                                                
+                                                NA,                              # artificial 15
+                                                NA,
+                                                
+                                                (b_res03b_1_2 - b_res03b_0_1),   # artificial 30
+                                                p_res03b_0_2,
+                                                  
+                                                (b_res04b_1_2 - b_res04b_0_1),   # artificial 45
+                                                p_res04b_0_2),
+                     
+                     
+                     "2 days - 4 days vs. 4 days - 6 days" = c((b_res01b_2_3 - b_res01b_1_2), # real-world
+                                                p_res01b_1_3,
+                     
+                                                 NA,   # artificial 15
+                                                 NA,
+                                                 
+                                                 NA,   # artificial 30
+                                                 NA,  
+                                                 
+                                                (b_res04b_2_3 - b_res04b_1_2),   # artificial 45
+                                                p_res04b_1_3)
+              ) %>% 
+  
+  `colnames<-`(c("Network",
+                 "0 days - 2 days vs. 2 days - 4 days",
+                 "2 days - 4 days vs. 4 days - 6 days"))
+
+# displaying hypothesis test table
+h_test00 %>% kable(.)
+
+
+####### Doing Hypotheses Tests for [H3] ----------------------------------------------
+## NOTE: I take advantage that coeficients and standard errors are already defined
+
+## Art. 15 vs. Art. 30
+# Portion 0 days to 2 days
+z_res0203_0_1 <- (b_res02b_0_1 - b_res03b_0_1)/sqrt( (se_res02b_0_1)^2 + (se_res03b_0_1)^2 ) 
+p_res0203_0_1 <- pnorm(q = z_res0203_0_1, lower.tail = TRUE)
+p_res0203_0_1
+
+# Portion 2 days to 4 days
+# NA
+
+# Portion 4 days to 6 days
+# NA
+
+
+## Art. 30 vs. Art. 45
+# Portion 0 days to 2 days
+z_res0304_0_1 <- (b_res03b_0_1 - b_res04b_0_1)/sqrt( (se_res03b_0_1)^2 + (se_res04b_0_1)^2 ) 
+p_res0304_0_1 <- pnorm(q = z_res0304_0_1, lower.tail = TRUE)
+p_res0304_0_1
+
+# Portion 2 days to 4 days
+z_res0304_1_2 <- (b_res03b_1_2 - b_res04b_1_2)/sqrt( (se_res03b_1_2)^2 + (se_res04b_1_2)^2 ) 
+p_res0304_1_2 <- pnorm(q = z_res0304_1_2, lower.tail = TRUE)
+p_res0304_1_2
+
+# Portion 4 days to 6 days
+# NA
+
+
+## preparing and displaying data frame
+# preparing data frame result data frame
+h_test01 <- data.frame(Network = c("0 days - 2 days: Diff. Effect",
+                                   "0 days - 2 days: p-Value",
+
+                                   "2 days - 4 days: Diff. Effect",
+                                   "2 days - 4 days: p-Value",
+
+                                   "4 days - 6 days: Diff. Effect",
+                                   "4 days - 6 days: p-Value"),
+
+                     "Art. 15 vs. Art. 30" = c((b_res03b_0_1 - b_res02b_0_1), 
+                                                p_res0203_0_1,
+
+                                                NA,                          
+                                                NA,
+                                               
+                                                NA,
+                                                NA),
+
+
+                     "Art. 30 vs. Art. 45"     = c((b_res04b_0_1 - b_res03b_0_1),
+                                                 p_res0304_0_1,
+
+                                                 c((b_res04b_1_2 - b_res03b_1_2),  
+                                                 p_res0304_1_2,
+
+                                                 NA,  
+                                                 NA))) %>%
+  
+`colnames<-`(c("Network", "Art. 15 vs. Art. 30", "Art. 30 vs. Art. 45"))
+
+# displaying result data frame
+h_test01%>% kable(.)
+
+``` 
+<br>
+
+
+##### 2.3 Plots
+
+```{r 02_03 suspension_plots, include = TRUE, results = TRUE, eval = TRUE, message = FALSE, warning = FALSE}
+
+#### "Real-Life" Network Only ---------------------------------------
+# Preparing Data
+data04 <- data02 %>% 
+  filter(., dens %in% "real") %>% 
+  filter(., no_sus >= 4) %>% 
+  mutate(., dat_bas = "all")
+data05 <- data03 %>% 
+  filter(., dens %in% "real") %>% 
+  mutate(., dat_bas = "365_oly")
+data06 <- data04 %>% 
+  rbind(., data05)
+
+# rendering, showing and saving plot
+gg01 <- data06 %>%
+        ggplot( aes(x = no_sus, 
+                    group = dat_bas,
+                    color = dat_bas) ) +
+  
+        geom_line(aes(y = mn_newip ),
+                      size = 1.0) +
+  
+        geom_errorbar(aes(ymin = mn_newip - sd_newip,
+                          ymax = mn_newip + sd_newip),
+                          colour = "black",
+                          width = 0.1,
+                          size = 0.5) +
+  
+        geom_point(aes(y = mn_newip),
+                       size = 1.5) +
+
+        scale_y_continuous(name ="Information Pollution Tweets [--]",
+                           limits = c(-50, 3550)) +
+  
+        scale_x_continuous(name = "Days Suspended [d]",
+                           breaks = c(0, 2, 4, 6),
+                           limits = c(-1, 7)) +
+  
+        scale_color_grey(name = "Runs:",
+                         labels = c("365 days", "Less than\n365 days")) +
+  
+        theme_bw()
+
+# showing plot
+gg01
+# saving plot
+gg01 %>% 
+  ggsave(., filename = "./PlotsTables/plt_susp_noip10_lstwt07_real_allobs_01.png",
+      units = "cm",
+      dpi = "retina",
+      height = 8,
+      width = 14)
+
+
+
+#### "Artificial Network" 365 days Only ---------------------------------------
+# rendering
+gg02 <- data03 %>%
+  
+        filter(., dens %in% c("sim_15", "sim_30", "sim_45")) %>%  
+  
+        ggplot( aes(x = no_sus,
+                    group = dens,
+                    color = dens) ) +
+  
+        geom_line(aes(y = mn_newip ),
+                      size = 1.0) +
+  
+        geom_errorbar(aes(ymin = mn_newip - sd_newip,
+                          ymax = mn_newip + sd_newip),
+                          colour = "black",
+                          width = 0.1,
+                          size = 0.5) +
+  
+        geom_point(aes(y = mn_newip),
+                       size = 1.5) +
+
+        scale_y_continuous(name ="Information Pollution Tweets [--]",
+                           limits = c(-50, 5100)) +
+
+        scale_x_continuous(name = "Days of Account Suspension [d]",
+                           breaks = c(0, 2, 4, 6),
+                           limits = c(-1, 7)) +
+  
+        scale_color_grey(name = "Density:",
+                         labels = c("15 links", "30 links", "45 links")) +
+
+        theme_bw()
+
+# showing plot
+gg02
+# saving plot
+gg02 %>% 
+  ggsave(., filename = "./PlotsTables/plt_susp_noip10_lstwt07_artif_365_01.png",
+      units = "cm",
+      dpi = "retina",
+      height = 8,
+      width = 14)
+
+
+#### Real and Artificial Networks, All Observations ---------------------------------------
+# rendering
+gg03 <- data02 %>%
+  
+        ggplot( aes(x = no_sus,
+                    group = dens,
+                    color = dens) ) +
+  
+        geom_line(aes(y = mn_newip ),
+                      size = 1.0) +
+  
+        geom_errorbar(aes(ymin = mn_newip - sd_newip,
+                          ymax = mn_newip + sd_newip),
+                          colour = "black",
+                          width = 0.1,
+                          size = 0.5) +
+  
+        geom_point(aes(y = mn_newip),
+                       size = 1.5) +
+
+        scale_y_continuous(name ="Information Pollution Tweets [--]",
+                           limits = c(-50, 5100)) +
+
+        scale_x_continuous(name = "Days of Account Suspension [d]",
+                           breaks = c(0, 2, 4, 6),
+                           limits = c(-1, 7)) +
+  
+        scale_color_grey(name = "Network:",
+                         labels = c("Real 30", "Artif. 15", "Artif. 30", "Artif. 45")) +
+
+        theme_bw()
+
+# showing plot
+gg03
+
+# saving plot
+gg03 %>% 
+  ggsave(., filename = "./PlotsTables/plt_susp_noip10_lstwt07_all_allobs_01.png",
+      units = "cm",
+      dpi = "retina",
+      height = 8,
+      width = 14)
+
+
+## removing auxillary variables
+rm(col_lab, n_row)
+rm(list= ls(pattern= "data"))
+rm(list= ls(pattern= "vct"))
+rm(list= ls(pattern= "res"))
+rm(list= ls(pattern= "gg"))
+
+```
+
+
+&nbsp;
+
+***
+
+#### 3. Contermeasure "Account Ban"
+
+16 x ~20 Runs are performed. Settings for these simulation runs are:
+
+    
+  + Real-life Network with 858 members, average node density = 30
+    - Run 1: banning 0 accounts.
+    - Run 2: banning 91 accounts (one every 4 days).
+    - Run 3: banning 183 accounts (one every 2 days).
+    - Run 4: banning 273 accounts (one every 36 hours).
+
+  + Simulated Network with 858 members, average node density = 15
+    - Run 1: banning 0 accounts.
+    - Run 2: banning 91 accounts (one every 4 days).
+    - Run 3: banning 183 accounts (one every 2 days).
+    - Run 4: banning 273 accounts (one every 36 hours).
+
+  + Simulated Network with 858 members, average node density = 30
+    - Run 1: banning 0 accounts.
+    - Run 2: banning 91 accounts (one every 4 days).
+    - Run 3: banning 183 accounts (one every 2 days).
+    - Run 4: banning 273 accounts (one every 36 hours).
+
+  + Simulated Network with 858 members, average node density = 45
+    - Run 1: banning 0 accounts.
+    - Run 2: banning 91 accounts (one every 4 days).
+    - Run 3: banning 183 accounts (one every 2 days).
+    - Run 4: banning 273 accounts (one every 36 hours).
+    
+<br>
+
+##### 3.1 Data Preparation
+
+```{r 03_01 ban_dataprep, include = TRUE, results = TRUE, eval = TRUE, message = FALSE, warning = FALSE}
+
+#### Loading Data
+data00 <- read.csv2(file = "./RawData/network_sim_ban_02_03_noip10_lstwt7_365_02.csv") %>%
+   dplyr::select(., "ï..strg", dens, dscr, val) %>% 
+  `colnames<-`(c("no_del", "dens", "descr", "val"))
+
+
+## Brining data in wide format, adding ticks and turtles to same observation
+# getting number of rows
+n_row <- nrow(data00) # number of rows
+# making vector with run-ids (3 values per run)
+vct00 <- rep(x = (1:(n_row/3)) , times = 3) %>% 
+  as.numeric(.) %>% 
+  sort(.)
+# attaching vector to data00 and spread (from long to wide format)
+data01 <- data00 %>% 
+  cbind(., run_id = vct00) %>% 
+  spread(., key = c("descr"), value = "val") %>% 
+  dplyr::select(., run_id, no_del, dens, sum_newip, sum_trltls, ticks)
+# saving wide format observations
+data01 %>% 
+   saveRDS(., file = "./RawData/nw_sim_ban_noip10_ls7_356_wide_01.RDS")
+
+## First Plot of Results "Warning"
+# with all observations (including those stopping before 365 days)
+data02 <- data01 %>%
+          group_by(no_del, dens) %>% 
+          summarize(mn_newip = mean(sum_newip), sd_newip = sd(sum_newip))
+# only observatons that ran to 365 days
+data03 <- data01 %>%
+          filter(., ticks == 365) %>% 
+          group_by(no_del, dens) %>% 
+          summarize(mn_newip = mean(sum_newip), sd_newip = sd(sum_newip))
+```
+<br>
+
+
+##### 3.2 Descriptive and OLS
+
+```{r 03_02 ban_OLS, include = TRUE, results = TRUE, eval = TRUE, message = FALSE, warning = FALSE}
+
+## Numbers of ticks for all rounds
+# calculating
+res_d00 <- data01 %>% 
+  group_by(., no_del, dens) %>% 
+  summarize(mean = mean(ticks))
+# showing
+res_d00
+
+#### performing OLS ----------------------------------------------
+
+## for network density "real" ----------
+# all observations
+res01a <- data01 %>% 
+         filter(., dens %in% "real") %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res01a)
+
+# observations that ran for 365 days
+res01b <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "real") %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res01b)
+
+# observations that ran for 365 days & between point 0 & 1
+res01b_0_1 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "real") %>%
+         filter(., no_del == 0 | no_del == 91) %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res01b_0_1)
+
+# observations that ran for 365 days & between point 1 & 2
+res01b_1_2 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "real") %>%
+         filter(., no_del == 91 | no_del == 183) %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res01b_1_2)
+
+# observations that ran for 365 days & between point 2 & 3
+res01b_2_3 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "real") %>%
+         filter(., no_del == 183 | no_del == 273) %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res01b_2_3)
+
+# # observations that ran for 365 days & between point 0 & 2
+res01b_0_3 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "real") %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res01b_0_3)
+
+
+## for network density "sim_15" ----------
+# all observations
+res02a <- data01 %>% 
+         filter(., dens %in% "sim_15") %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res02a)
+
+# observations that ran for 365 days
+res02b <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_15") %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res02b)
+
+# observations that ran for 365 days & between point 0 & 1
+res02b_0_1 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_15") %>%
+         filter(., no_del == 0 | no_del == 91) %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res02b_0_1)
+
+# observations that ran for 365 days & between point 1 & 2
+res02b_1_2 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_15") %>%
+         filter(., no_del == 91 | no_del == 183) %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res02b_1_2)
+
+# observations that ran for 365 days & between point 0 & 2
+res02b_0_2 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_15") %>%
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res02b_0_2)
+
+
+## for network density "sim_30" ----------
+# all observations
+res03a <- data01 %>% 
+         filter(., dens %in% "sim_30") %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res03a)
+
+# observations that ran for 365 days
+res03b <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_30") %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res03b)
+
+# observations that ran for 365 days & between point 0 & 1
+res03b_0_1 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_30") %>%
+         filter(., no_del == 0 | no_del == 91) %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res03b_0_1)
+
+# observations that ran for 365 days & between point 1 & 2
+res03b_1_2 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_30") %>%
+         filter(., no_del == 91 | no_del == 183) %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res03b_1_2)
+
+# # observations that ran for 365 days & between point 2 & 3
+res03b_2_3 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_30") %>% 
+         filter(., no_del == 183 | no_del == 273) %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res03b_2_3)
+
+# observations that ran for 365 days & between point 0 & 3
+res03b_0_3 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_30") %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res03b_0_3)
+
+## for network density "sim_45" ----------
+# all observations
+res04a <- data01 %>% 
+         filter(., dens %in% "sim_45") %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res04a)
+
+# observations that ran for 365 days
+res04b <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_45") %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res04b)
+
+# observations that ran for 365 days & between point 0 & 1
+res04b_0_1 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_45") %>%
+         filter(., no_del == 0 | no_del == 91) %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res04b_0_1)
+
+# observations that ran for 365 days & between point 1 & 2
+res04b_1_2 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_45") %>%
+         filter(., no_del == 91 | no_del == 183) %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res04b_1_2)
+
+# observations that ran for 365 days & between point 2 & 3
+res04b_2_3 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_45") %>%
+         filter(., no_del == 183 | no_del == 273) %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res04b_2_3)
+
+# observations that ran for 365 days & between point 0 & 3
+res04b_0_3 <- data01 %>% 
+         filter(., ticks == 365) %>% 
+         filter(., dens %in% "sim_45") %>% 
+         lm(data = ., formula = sum_newip ~ no_del)
+summary(res04b_0_3)
+
+
+#### saving results
+## "real", observations that ran 365 days
+# defining column labels
+col_lab = c("0 to 91", "91 to 183",
+            "183 to 273", "0 to 273")
+# rendering and saving regression table
+stargazer(res01b_0_1, res01b_1_2,
+          res01b_2_3, res01b_0_3,
+         column.labels = col_lab,
+         title = "Countermeasure Account Ban",
+         style = "apsr",
+         digits = 2,
+         type = "html",
+         out = "./PlotsTables/ols_ban_noip10_lstwt07_365_real_02.html")
+
+## All models, observations that ran 365 days
+# defining column labels
+col_lab = c("Sim 15: 0-91", "Sim 15: 91-183", "Sim 15: 0-183",
+            "Sim 30: 0-91", "Sim 30: 91-183", "Sim 30: 183-273", "Sim 30: 0-273",
+            "Sim 45: 0-91", "Sim 45: 91-183", "Sim 45: 183-273", "Sim 45: 0-273",
+            "Real: 0-91", "Real: 91-183", "Real: 183-273", "Real: 0-273")
+# rendering and saving regression table
+stargazer(res02b_0_1, res02b_1_2, res02b_0_2,
+          res03b_0_1, res03b_1_2, res03b_2_3, res03b_0_3,
+          res04b_0_1, res04b_1_2, res04b_2_3, res04b_0_3,
+          res01b_0_1, res01b_1_2, res01b_2_3, res01b_0_3,
+          column.labels = col_lab,
+          title = "Countermeasure Account Ban",
+          style = "apsr",
+          digits = 2,
+          type = "html",
+          out = "./PlotsTables/ols_ban_noip10_lstwt07_365_sim_02.html")
+
+# Getting Summary of 183 banned accounts
+res05 <- data01 %>% 
+         filter(., dens %in% "real") %>% 
+         filter(., no_del == 0 ) %>% 
+        # dplyr::select(., ticks) %>% 
+         summary(.)
+res05
+
+# Getting Number of runs with less than 365 days runtime
+res06 <- data01 %>% 
+         filter(., dens %in% "real") %>% 
+         filter(., no_del == 0) %>% 
+         arrange(desc(ticks))
+res06
+
+
+###### Doing Hypotheses Tests for [H2b] ----------------------------------------------
+
+#### For Real-World Network
+# for portion 0 accounts to 91 accounts
+int_res01b_0_1 <- res01b_0_1 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res01b_0_1 <-  int_res01b_0_1[2, "Estimate"]
+se_res01b_0_1 <- int_res01b_0_1[2, "Std. Error"]
+
+# for portion 91 accounts to 183 accounts
+int_res01b_1_2 <- res01b_1_2 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res01b_1_2 <-  int_res01b_1_2[2, "Estimate"]
+se_res01b_1_2 <- int_res01b_1_2[2, "Std. Error"]
+
+# for portion 183 accounts to 273 accounts
+int_res01b_2_3 <- res01b_2_3 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res01b_2_3 <-  int_res01b_2_3[2, "Estimate"]
+se_res01b_2_3 <- int_res01b_2_3[2, "Std. Error"]
+
+# calculation Z-Value & getting p-value
+# portion 0 to 183 accounts
+z_res01b_0_2 <- (b_res01b_1_2 - b_res01b_0_1)/sqrt( (se_res01b_1_2)^2 + (se_res01b_0_1)^2 ) 
+p_res01b_0_2 <- pnorm(q = z_res01b_0_2, lower.tail = TRUE)
+p_res01b_0_2 
+
+# portion 91 to 273 accounts
+z_res01b_1_3 <- (b_res01b_2_3 - b_res01b_1_2)/sqrt( (se_res01b_2_3)^2 + (se_res01b_1_2)^2 ) 
+p_res01b_1_3 <- pnorm(q = z_res01b_1_3, lower.tail = TRUE)
+p_res01b_1_3 
+
+#### For 15 artificial Network
+# for portion 0 accounts to 91 accounts
+int_res02b_0_1 <- res02b_0_1 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res02b_0_1 <-  int_res02b_0_1[2, "Estimate"]
+se_res02b_0_1 <- int_res02b_0_1[2, "Std. Error"]
+
+# for portion 91 accounts to 183 accounts
+int_res02b_1_2 <- res02b_1_2 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res02b_1_2 <-  int_res02b_1_2[2, "Estimate"]
+se_res02b_1_2 <- int_res02b_1_2[2, "Std. Error"]
+
+# calculation Z-Value & getting p-value
+# portion 0 to 183 accounts
+z_res02b_0_2 <- (b_res02b_1_2 - b_res02b_0_1)/sqrt( (se_res02b_1_2)^2 + (se_res02b_0_1)^2 ) 
+p_res02b_0_2 <- pnorm(q = z_res02b_0_2, lower.tail = TRUE)
+p_res02b_0_2 
+
+
+#### For 30 artificial Network
+# for portion 0 accounts to 91 accounts
+int_res03b_0_1 <- res03b_0_1 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res03b_0_1 <-  int_res03b_0_1[2, "Estimate"]
+se_res03b_0_1 <- int_res03b_0_1[2, "Std. Error"]
+
+# for portion 91 accounts to 183 accounts
+int_res03b_1_2 <- res03b_1_2 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res03b_1_2 <-  int_res03b_1_2[2, "Estimate"]
+se_res03b_1_2 <- int_res03b_1_2[2, "Std. Error"]
+
+# for portion 183 accounts to 273 accounts
+int_res03b_2_3 <- res03b_2_3 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res03b_2_3 <-  int_res03b_2_3[2, "Estimate"]
+se_res03b_2_3 <- int_res03b_2_3[2, "Std. Error"]
+
+# calculation Z-Value & getting p-value
+# portion 0 to 183 accounts
+z_res03b_0_2 <- (b_res03b_1_2 - b_res03b_0_1)/sqrt( (se_res03b_1_2)^2 + (se_res03b_0_1)^2 ) 
+p_res03b_0_2 <- pnorm(q = z_res03b_0_2, lower.tail = TRUE)
+p_res03b_0_2 
+
+# portion 91 to 273 accounts
+z_res03b_1_3 <- (b_res03b_2_3 - b_res03b_1_2)/sqrt( (se_res03b_2_3)^2 + (se_res03b_1_2)^2 ) 
+p_res03b_1_3 <- pnorm(q = z_res03b_1_3, lower.tail = TRUE)
+p_res03b_1_3 
+
+
+#### For 45 artificial Network
+# for portion 0 accounts to 91 accounts
+int_res04b_0_1 <- res04b_0_1 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res04b_0_1 <-  int_res04b_0_1[2, "Estimate"]
+se_res04b_0_1 <- int_res04b_0_1[2, "Std. Error"]
+
+# for portion 91 accounts to 183 accounts
+int_res04b_1_2 <- res04b_1_2 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res04b_1_2 <-  int_res04b_1_2[2, "Estimate"]
+se_res04b_1_2 <- int_res04b_1_2[2, "Std. Error"]
+
+# for portion 183 accounts to 273 accounts
+int_res04b_2_3 <- res04b_2_3 %>% 
+  summary(.) %>%
+  coef(.) %>% 
+  as.data.frame(.) %>% 
+  dplyr::select(., Estimate, "Std. Error")
+# getting coefficient ("b") and standard error ("se")
+b_res04b_2_3 <-  int_res04b_2_3[2, "Estimate"]
+se_res04b_2_3 <- int_res04b_2_3[2, "Std. Error"]
+
+# calculation Z-Value & getting p-value
+# portion 0 to 183 accounts
+z_res04b_0_2 <- (b_res04b_1_2 - b_res04b_0_1)/sqrt( (se_res04b_1_2)^2 + (se_res04b_0_1)^2 ) 
+p_res04b_0_2 <- pnorm(q = z_res04b_0_2, lower.tail = TRUE)
+p_res04b_0_2 
+
+# portion 91 to 273 accounts
+z_res04b_1_3 <- (b_res04b_2_3 - b_res04b_1_2)/sqrt( (se_res04b_2_3)^2 + (se_res04b_1_2)^2 ) 
+p_res04b_1_3 <- pnorm(q = z_res04b_1_3, lower.tail = TRUE)
+p_res04b_1_3 
+
+
+h_test00 <- data.frame(Network = c("Real-World: Diff. Effect",
+                                 "Real-World: p-Value",
+                                 
+                                 "Art. 15: Diff. Effect",
+                                 "Art. 15: p-Value",
+                                 
+                                 "Art. 30: Diff. Effect",
+                                 "Art. 30: p-Value",
+                                 
+                                 "Art. 45: Diff. Effect",
+                                 "Art. 45: p-Value"),
+                     
+                     "0 acc. - 91 acc. vs. 91 acc. - 183 acc." = c((b_res01b_1_2 - b_res01b_0_1), # real-world
+                                                p_res01b_0_2,
+                                                
+                                                c((b_res02b_1_2 - b_res02b_0_1), # real-world
+                                                p_res02b_0_2,
+                                                
+                                                (b_res03b_1_2 - b_res03b_0_1),   # artificial 30
+                                                p_res03b_0_2,
+                                                  
+                                                (b_res04b_1_2 - b_res04b_0_1),   # artificial 45
+                                                p_res04b_0_2)),
+                     
+                     
+                     "91 acc. - 183 acc. vs. 183 acc. - 273 acc." = c((b_res01b_2_3 - b_res01b_1_2), # real-world
+                                                p_res01b_1_3,
+                     
+                                                 NA,   # artificial 15
+                                                 NA,
+                                                 
+                                                (b_res03b_2_3 - b_res03b_1_2),   # artificial 30
+                                                p_res03b_1_3,
+                                                 
+                                                (b_res04b_2_3 - b_res04b_1_2),   # artificial 45
+                                                p_res04b_1_3)) %>% 
+  
+  `colnames<-`(c("Network",
+                 "0 acc. - 91 acc. vs. 91 acc. - 183 acc.",
+                 "91 acc. - 183 acc. vs. 183 acc. - 273 acc."))
+
+# displaying hypothesis test table
+h_test00 %>% kable(.)
+
+
+####### Doing Hypotheses Tests for [H3] ----------------------------------------------
+## NOTE: I take advantage that coeficients and standard errors are already defined
+
+## Art. 15 vs. Art. 30
+# Portion 0 acc. to 91 acc.
+z_res0203_0_1 <- (b_res02b_0_1 - b_res03b_0_1)/sqrt( (se_res02b_0_1)^2 + (se_res03b_0_1)^2 ) 
+p_res0203_0_1 <- pnorm(q = z_res0203_0_1, lower.tail = TRUE)
+p_res0203_0_1
+
+# Portion 91 acc. to 183 acc.
+z_res0203_1_2 <- (b_res02b_1_2 - b_res03b_1_2)/sqrt( (se_res02b_1_2)^2 + (se_res03b_1_2)^2 ) 
+p_res0203_1_2 <- pnorm(q = z_res0203_1_2, lower.tail = TRUE)
+p_res0203_1_2
+
+# Portion 183 acc. to 273 acc.
+# NA
+
+
+## Art. 30 vs. Art. 45
+# Portion 0 acc. to 91 acc.
+z_res0304_0_1 <- (b_res03b_0_1 - b_res04b_0_1)/sqrt( (se_res03b_0_1)^2 + (se_res04b_0_1)^2 ) 
+p_res0304_0_1 <- pnorm(q = z_res0304_0_1, lower.tail = TRUE)
+p_res0304_0_1
+
+# Portion 91 acc. to 183 acc.
+z_res0304_1_2 <- (b_res03b_1_2 - b_res04b_1_2)/sqrt( (se_res03b_1_2)^2 + (se_res04b_1_2)^2 ) 
+p_res0304_1_2 <- pnorm(q = z_res0304_1_2, lower.tail = TRUE)
+p_res0304_1_2
+
+# Portion 183 acc. to 273 acc.
+z_res0304_2_3 <- (b_res03b_2_3 - b_res04b_2_3)/sqrt( (se_res03b_2_3)^2 + (se_res04b_2_3)^2 ) 
+p_res0304_2_3 <- pnorm(q = z_res0304_2_3, lower.tail = TRUE)
+p_res0304_2_3
+
+
+## preparing and displaying result data frame
+# preparing result data frame
+h_test01 <- data.frame(Network = c("0 acc. - 91 acc.: Diff. Effect",
+                                   "0 acc. - 91 acc.: p-Value",
+
+                                   "91 acc. - 183 acc.: Diff. Effect",
+                                   "91 acc. - 183 acc.: p-Value",
+
+                                   "183 acc. - 273 acc.: Diff. Effect",
+                                   "183 acc. - 273 acc.: p-Value"),
+
+                     "Art. 15 vs. Art. 30" = c((b_res03b_0_1 - b_res02b_0_1), 
+                                                p_res0203_0_1,
+
+                                              c(b_res03b_1_2 - b_res02b_1_2), 
+                                                p_res0203_1_2,
+                                               
+                                                NA,
+                                                NA),
+
+
+                     "Art. 30 vs. Art. 45"     = c((b_res04b_0_1 - b_res03b_0_1),
+                                                 p_res0304_0_1,
+
+                                                 c(b_res04b_1_2 - b_res03b_1_2),  
+                                                 p_res0304_1_2,
+
+                                                 c(b_res04b_2_3 - b_res03b_2_3),  
+                                                 p_res0304_2_3)) %>% 
+  
+`colnames<-`(c("Network", "Art. 15 vs. Art. 30", "Art. 30 vs. Art. 45"))
+
+# displaying result data frame
+h_test01%>% kable(.)
+
+
+```
+<br>
+
+##### 3.3 Plots
+
+```{r 03_01 ban_plots, include = TRUE, results = TRUE, eval = TRUE, message = FALSE, warning = FALSE}
+
+
+##### creating plots -----------------------------------------------------------------
+## "Real-Life" Network Only
+# Preparing Data
+data04 <- data02 %>% 
+  filter(., dens %in% "real") %>% 
+  filter(., no_del >= 183) %>% 
+  mutate(., dat_bas = "all")
+data05 <- data03 %>% 
+  filter(., dens %in% "real") %>% 
+  mutate(., dat_bas = "365_oly")
+data06 <- data04 %>% 
+  rbind(., data05)
+
+# rendering, showing and saving plot
+gg01 <- data06 %>%
+        ggplot( aes(x = no_del, 
+                    group = dat_bas,
+                    color = dat_bas) ) +
+  
+        geom_line(aes(y = mn_newip ) ) +
+  
+        geom_errorbar(aes(ymin = mn_newip - sd_newip,
+                          ymax = mn_newip + sd_newip),
+                      colour = "black",
+                      width = 5.0,
+                      size = 0.5) +
+  
+        geom_point(aes(y = mn_newip),
+                       size = 1.5) +
+
+        scale_y_continuous(name ="Information Pollution Tweets [-]",
+                           limits = c(-50, 3550)) +
+  
+        scale_x_continuous(name = "Accounts Banned [-]",
+                           breaks = c(0, 91, 183, 273),
+                           limits = c(-1, 274)) +
+  
+        scale_color_grey(name = "Runs:",
+                         labels = c("365 days", "Less than\n365 days")) +
+
+        theme_bw()
+
+# saving plot
+gg01 %>% 
+  ggsave(., filename = "./PlotsTables/plt_ban_noip10_lstwt07_real_allobs_01.png",
+      units = "cm",
+      dpi = "retina",
+      height = 8,
+      width = 14)
+
+
+#### "Artificial Network" 365 days Only ---------------------------------------
+# rendering
+gg02 <- data03 %>%
+  
+        filter(., dens %in% c("sim_15", "sim_30", "sim_45")) %>%  
+  
+        ggplot( aes(x = no_del,
+                    group = dens,
+                    color = dens) ) +
+  
+        geom_line(aes(y = mn_newip ),
+                      size = 1.0) +
+  
+        geom_errorbar(aes(ymin = mn_newip - sd_newip,
+                          ymax = mn_newip + sd_newip),
+                          colour = "black",
+                          width = 3.5,
+                          size = 0.5) +
+  
+        geom_point(aes(y = mn_newip),
+                       size = 1.5) +
+
+        scale_y_continuous(name ="Information Pollution Tweets [--]",
+                           limits = c(-50, 5100)) +
+
+        scale_x_continuous(name = "Accounts Banned [-]",
+                           breaks = c(0, 91, 183, 273),
+                           limits = c(-1, 274)) +
+  
+        scale_color_grey(name = "Density:",
+                         labels = c("15 links", "30 links", "45 links")) +
+
+        theme_bw()
+
+# showing plot
+gg02
+# saving plot
+gg02 %>% 
+  ggsave(., filename = "./PlotsTables/plt_ban_noip10_lstwt07_artif_365_01.png",
+      units = "cm",
+      dpi = "retina",
+      height = 8,
+      width = 14)
+
+
+#### Real and Artificial Networks, All Observations ---------------------------------------
+# rendering
+gg03 <- data02 %>%
+  
+        ggplot( aes(x = no_del,
+                    group = dens,
+                    color = dens) ) +
+  
+        geom_line(aes(y = mn_newip ),
+                      size = 1.0) +
+  
+        geom_errorbar(aes(ymin = mn_newip - sd_newip,
+                          ymax = mn_newip + sd_newip),
+                          colour = "black",
+                          width = 2.0,
+                          size = 0.5) +
+  
+        geom_point(aes(y = mn_newip),
+                       size = 1.5) +
+
+        scale_y_continuous(name ="Information Pollution Tweets [--]",
+                           limits = c(-50, 5100)) +
+
+        scale_x_continuous(name = "Accounts Banned [-]",
+                           breaks = c(0, 91, 183, 273),
+                           limits = c(-1, 274)) +
+  
+        scale_color_grey(name = "Network:",
+                         labels = c("Real 30", "Artif. 15", "Artif. 30", "Artif. 45")) +
+
+        theme_bw()
+
+# showing plot
+gg03
+
+# saving plot
+gg03 %>% 
+  ggsave(., filename = "./PlotsTables/plt_ban_noip10_lstwt07_all_allobs_01.png",
+      units = "cm",
+      dpi = "retina",
+      height = 8,
+      width = 14)
+
+
+## removing auxillary variables
+rm(col_lab, n_row)
+rm(list= ls(pattern= "data"))
+rm(list= ls(pattern= "vct"))
+rm(list= ls(pattern= "res"))
+rm(list= ls(pattern= "gg"))
+```
+
