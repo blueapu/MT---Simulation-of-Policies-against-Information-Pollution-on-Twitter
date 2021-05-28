@@ -1,16 +1,16 @@
 # MT---Simulation-of-Policies-against-Information-Pollution-on-Twitter
-Respository for Master Thesis / Markus Rottmann, 97-919-294
+Repository for Master Thesis / Markus Rottmann, 97-919-294
 
-This _respository_ contains the _R_- and _NetLogo_-code for my Master Thesis **"Simulation of Policies against Information-Pollution on Twitter"**.
-+ all input and output data are referenced in the respective codes. 
-+ for easy viewing, klick the link below each description or download the .html version and view it in your browser.
+This repository contains the _R_- and _NetLogo_-code for my Master Thesis **"Simulation of Policies against Information-Pollution on Twitter"**.
++ all input and output data is referenced in the respective codes. 
++ for easy viewing, klick the link below each description or download the _.html_ version and view it in your browser.
 + following data sets, containing tweets are not included for privacy reasons:
-  - _corp_all_de.rds_: corpus containing tweets
+  - _corp_all_de.rds_: corpus (collection of texts) containing tweets
   - _df_tweets_all.rds_: data frame containing all tweets, non-clean
   - _df_tweets_clean_all.rds_: data frame containing all tweets, clean
   - _df_tweets_clean_de.rds_: data frame conatining all tweets, non-italian, non-french, clean
   - _df_tweets_clean_de_w_ipind.rds_: data frame conatining all tweets, non-italian, non-french, clean, with indicator of information pollution. 
-+ following basig data sets, containing personal information on candidates of Swiss 2019 election:
++ following basic data sets, containing personal information on candidates of Swiss 2019 election are not included for privacy reasons:
   - _2019_chvote_councilofstates.csv_: data frame containing personal information of candidates for the Council of States.
   - _2019_chvote_nationalcouncil.csv_:  data frame containing personal information of candidates for the national council.
 
@@ -18,7 +18,7 @@ This _respository_ contains the _R_- and _NetLogo_-code for my Master Thesis **"
 
 ### R-Code
 **Code: MT_scraping_05.rmd / MT_scraping_05.html**
-+ This Code Scrapes the Tweets of all candidates for 2019 elections and combines it into a data frame that also contains properties such as gender, age, party, etc. For the sake of privacy, all twitter API information is set to “YYY”. All code chunks are set eval = FALSE due to the very long running time of this code.
++ This Code scrapes the tweets of all candidates for 2019 elections and combines it into a data frame that also contains properties such as gender, age, party, etc. For the sake of privacy, all twitter API information is set to “YYY”. All code chunks are set _eval = FALSE_ due to the very long running time of this code.
 + [MT_scraping_05.html](https://htmlpreview.github.io/?https://github.com/blueapu/MT---Simulation-of-Policies-against-Information-Pollution-on-Twitter/blob/main/R_Code_Replication/MT_scraping_05.html)
 
 &nbsp;
@@ -32,6 +32,10 @@ This _respository_ contains the _R_- and _NetLogo_-code for my Master Thesis **"
 **Code: MT_networkanalysis_07.rmd / MT_networkanalysis_07.html**
 + This Code is to analyze/build the network from downloaded tweets. This is done in two steps. First, analyzing who mentions whose twitter handle (e.g. @markus_rottmann). Second, transforming this information into a adjecency matrix.
 + [MT_networkanalysis_07.html](https://htmlpreview.github.io/?https://github.com/blueapu/MT---Simulation-of-Policies-against-Information-Pollution-on-Twitter/blob/main/R_Code_Replication/MT_networkanalysis_07.html)
+
+**REPLICATION NOTE _R_**: To replicate the _R_ Code:
+1. obtain the non-included data as described in the first paragraph.
+2. copy folder _R_Code_Replication_, including sub-folders to you computer and open R-Project _R_Code_Replication.Rproj_.
 
 
 &nbsp;
@@ -64,3 +68,7 @@ This _respository_ contains the _R_- and _NetLogo_-code for my Master Thesis **"
 **Code: network_sim_ban_x02_03_universal.nlogo / network_sim_ban_x02_03_universal.html**
 + Contains the code building the MABS model for countermeasure "Account Ban".
 + [network_sim_ban_x02_03_universal.html](https://htmlpreview.github.io/?https://github.com/blueapu/MT---Simulation-of-Policies-against-Information-Pollution-on-Twitter/blob/main/network_sim_ban_x02_03_universal.html)
+
+&nbsp;
+
+**REPLICATION NOTE _NetLogo_**: To replicate the _NetLogo_ Code, copy the folder, including sub-folder _Data_ to you computer and adjust line _set-current-directory "D:\\Studium\\MT_MasterThesis\\MT_Code\\NetLogo_Code"_ in each model accordingly.
