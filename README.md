@@ -47,7 +47,8 @@ This repository contains the _R_- and _NetLogo_-code for my Master Thesis **"Sim
 
 &nbsp;
 
-**NOTE Replication _R_**  To replicate the _R_ Code:
+**NOTE Replication _R_**\
+To replicate the _R_ Code:
 + obtain the non-included data as described in the first paragraph.
 + copy folder _R_Code_Replication_, including sub-folders to you computer and open R-Project _R_Code_Replication.Rproj_.
 
@@ -72,4 +73,5 @@ This repository contains the _R_- and _NetLogo_-code for my Master Thesis **"Sim
 
 &nbsp;
 
-**NOTE Replication _NetLogo_**  To replicate the _NetLogo_ Code, copy the folder, including sub-folder _Data_ to you computer and adjust line _set-current-directory "D:\\Studium\\MT_MasterThesis\\MT_Code\\NetLogo_Code"_ in each model accordingly.
+**NOTE Replication _NetLogo_**\
+To replicate the _NetLogo_ Code, copy the folder, including sub-folder _Data_ to you computer and adjust line _set-current-directory "D:\\Studium\\MT_MasterThesis\\MT_Code\\NetLogo_Code"_ in each model accordingly.
