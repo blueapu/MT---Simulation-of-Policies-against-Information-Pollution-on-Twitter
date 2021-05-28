@@ -33,6 +33,8 @@ This repository contains the _R_- and _NetLogo_-code for my Master Thesis **"Sim
 + This Code is to analyze/build the network from downloaded tweets. This is done in two steps. First, analyzing who mentions whose twitter handle (e.g. @markus_rottmann). Second, transforming this information into a adjecency matrix.
 + [MT_networkanalysis_07.html](https://htmlpreview.github.io/?https://github.com/blueapu/MT---Simulation-of-Policies-against-Information-Pollution-on-Twitter/blob/main/R_Code_Replication/MT_networkanalysis_07.html)
 
+&nbsp;
+
 **Code: MT_probabilities_prediction_02.rmd / MT_probabilities_prediction_02.html**
 + This code predicts the probability of all candidates in the network to tweet a certain type of information pollution tweets. These results are input for the MABS simulation. This is achieved in three steps. First, a multinominal regression is ran on all manually information pollution tweets of the corona tweets. Independent variables are _gender_ and _party_. Second, The regression results are then applied to all candidates in the network, results are predicted probabilities. Third, since the probabilities to issue an information pollution tweet are very low (less than 0.1%), the probabilites enhanced, resulting in pronounced probabilities.
 + [MT_probabilities_prediction_02.html](https://htmlpreview.github.io/?https://github.com/blueapu/MT---Simulation-of-Policies-against-Information-Pollution-on-Twitter/blob/main/R_Code_Replication/MT_probabilities_prediction_02.html)
@@ -45,8 +47,7 @@ This repository contains the _R_- and _NetLogo_-code for my Master Thesis **"Sim
 
 &nbsp;
 
-**NOTE Replication _R_**
-To replicate the _R_ Code:
+**NOTE Replication _R_**  To replicate the _R_ Code:
 + obtain the non-included data as described in the first paragraph.
 + copy folder _R_Code_Replication_, including sub-folders to you computer and open R-Project _R_Code_Replication.Rproj_.
 
@@ -71,5 +72,4 @@ To replicate the _R_ Code:
 
 &nbsp;
 
-**NOTE Replication _NetLogo_**
-To replicate the _NetLogo_ Code, copy the folder, including sub-folder _Data_ to you computer and adjust line _set-current-directory "D:\\Studium\\MT_MasterThesis\\MT_Code\\NetLogo_Code"_ in each model accordingly.
+**NOTE Replication _NetLogo_**  To replicate the _NetLogo_ Code, copy the folder, including sub-folder _Data_ to you computer and adjust line _set-current-directory "D:\\Studium\\MT_MasterThesis\\MT_Code\\NetLogo_Code"_ in each model accordingly.
