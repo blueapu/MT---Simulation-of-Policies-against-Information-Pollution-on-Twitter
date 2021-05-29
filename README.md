@@ -42,7 +42,7 @@ This repository contains the _R_- and _NetLogo_-code for my Master Thesis **"Sim
 &nbsp;
 
 **Code: MT_resultanalysis_09.rmd / MT_resultanalysis_09.html**
-+ This code is to analyze/build the results from the simulating each countermeasure (in NetLogo). It calculates descriptive statistics, renders plots and performs OLS. 
++ This code is to analyze/build the results from the simulating each countermeasure (in NetLogo). It calculates descriptive statistics, renders plots, performs OLS, and performs the hypothesis tests. 
 + [MT_resultanalysis_09.html](https://htmlpreview.github.io/?https://github.com/blueapu/MT---Simulation-of-Policies-against-Information-Pollution-on-Twitter/blob/main/R_Code_Replication/MT_resultanalysis_09.html)
 
 &nbsp;
