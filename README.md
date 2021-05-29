@@ -3,14 +3,14 @@ Repository for Master Thesis / Markus Rottmann, 97-919-294
 
 This repository contains the _R_- and _NetLogo_-code for my Master Thesis **"Simulation of Policies against Information-Pollution on Twitter"**.
 + all input and output data is referenced in the respective codes. 
-+ for easy viewing, klick the link below each description or download the _.html_ version and view it in your browser.
-+ following data sets, containing tweets are not included for privacy reasons:
++ for easy viewing, click the links below each description or download the _.html_ version and view it in your browser.
++ following _.rds_ data sets, containing tweets, are not included for privacy reasons:
   - _corp_all_de.rds_: corpus (collection of texts) containing tweets
   - _df_tweets_all.rds_: data frame containing all tweets, non-clean
   - _df_tweets_clean_all.rds_: data frame containing all tweets, clean
   - _df_tweets_clean_de.rds_: data frame conatining all tweets, non-italian, non-french, clean
   - _df_tweets_clean_de_w_ipind.rds_: data frame conatining all tweets, non-italian, non-french, clean, with indicator of information pollution. 
-+ following basic data sets, containing personal information on candidates of Swiss 2019 election are not included for privacy reasons:
++ following _.csv_ data sets, containing personal information on candidates of Swiss 2019 election, are not included for privacy reasons:
   - _2019_chvote_councilofstates.csv_: data frame containing personal information of candidates for the Council of States.
   - _2019_chvote_nationalcouncil.csv_:  data frame containing personal information of candidates for the national council.
 
@@ -18,7 +18,7 @@ This repository contains the _R_- and _NetLogo_-code for my Master Thesis **"Sim
 
 ### R-Code
 **Code: MT_scraping_05.rmd / MT_scraping_05.html**
-+ This Code scrapes the tweets of all candidates for 2019 elections and combines it into a data frame that also contains properties such as gender, age, party, etc. For the sake of privacy, all twitter API information is set to “YYY”. All code chunks are set _eval = FALSE_ due to the very long running time of this code.
++ This code scrapes the tweets of all candidates for 2019 elections and combines it into a data frame that also contains properties such as gender, age, party, etc. For the sake of privacy, all twitter API information is set to “YYY”. All code chunks are set _eval = FALSE_ due to the very long running time of this code.
 + [MT_scraping_05.html](https://htmlpreview.github.io/?https://github.com/blueapu/MT---Simulation-of-Policies-against-Information-Pollution-on-Twitter/blob/main/R_Code_Replication/MT_scraping_05.html)
 
 &nbsp;
@@ -42,7 +42,7 @@ This repository contains the _R_- and _NetLogo_-code for my Master Thesis **"Sim
 &nbsp;
 
 **Code: MT_resultanalysis_09.rmd / MT_resultanalysis_09.html**
-+ This Code is to analyze/build the results from the simulating each countermeasure (in NetLogo). It calculates descriptive statistics, renders plots and performs OLS. 
++ This code is to analyze/build the results from the simulating each countermeasure (in NetLogo). It calculates descriptive statistics, renders plots and performs OLS. 
 + [MT_resultanalysis_09.html](https://htmlpreview.github.io/?https://github.com/blueapu/MT---Simulation-of-Policies-against-Information-Pollution-on-Twitter/blob/main/R_Code_Replication/MT_resultanalysis_09.html)
 
 &nbsp;
