@@ -1,7 +1,7 @@
 # MT---Simulation-of-Policies-against-Information-Pollution-on-Twitter
 Repository for Master's Thesis / Markus Rottmann, 97-919-294
 
-This repository contains the _R_- and _NetLogo_-code for my Master Thesis **"Simulation of Policies against Information-Pollution on Twitter"**.
+This repository contains the _R_- and _NetLogo_-code for my Master's Thesis **"Simulation of Policies against Information-Pollution on Twitter"**.
 + all input and output data is referenced in the respective codes. 
 + for easy viewing, click the links below each description or download the _.html_ version and view it in your browser.
 + following _.rds_ data sets, containing tweets, are not included for privacy reasons:
